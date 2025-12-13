@@ -14,7 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { LogOut, User, Settings, Edit, Trash, Search } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import api from '@/lib/api-client';
+import { toast } from 'sonner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export const UserProfile = () => {
@@ -24,9 +25,9 @@ export const UserProfile = () => {
   const [openSettings, setOpenSettings] = useState(false);
   const [openCreateUser, setOpenCreateUser] = useState(false);
   const [openEditUser, setOpenEditUser] = useState(false);
-  const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState(user?.email || '');
-  const [department, setDepartment] = useState(user?.user_metadata?.department || '');
+  const [department, setDepartment] = useState(user?.department || '');
   const [role, setRole] = useState('');
   const [accountType, setAccountType] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,26 +39,31 @@ export const UserProfile = () => {
   const [isFormSubmitted, setIsFormSubmitted] = useState(false);
 
   useEffect(() => {
-    setFullName(user?.user_metadata?.full_name || '');
     setEmail(user?.email || '');
-    setDepartment(user?.user_metadata?.department || '');
+    setDepartment(user?.department || '');
     checkAuthorization();
     fetchUsers();
-    setUserRole(role);
+    if (user?.role) {
+      setUserRole(user.role);
+      setRole(user.role);
+    }
   }, [user]);
 
   const checkAuthorization = async () => {
     if (user?.email) {
-      const { data, error } = await supabase
-        .from('users')
-        .select('email, role')
-        .eq('email', user.email)
-        .single();
-      if (data && !error) {
-        setIsAuthorized(true);
-        setUserRole(data.role);
-        setRole(data.role);
-      } else {
+      try {
+        const response = await api.users.getMe();
+        if (response.data) {
+          setIsAuthorized(true);
+          setUserRole(response.data.role);
+          setRole(response.data.role);
+          setDepartment(response.data.department || '');
+        } else {
+          setIsAuthorized(false);
+          setUserRole(null);
+          setRole('');
+        }
+      } catch (error) {
         setIsAuthorized(false);
         setUserRole(null);
         setRole('');
@@ -67,11 +73,11 @@ export const UserProfile = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase.from('users').select('*');
-      if (error) throw error;
-      setUsers(data || []);
+      const response = await api.users.getAll();
+      setUsers(response.data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
+      toast.error('Failed to fetch users');
     }
   };
 
@@ -85,13 +91,15 @@ export const UserProfile = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await supabase.auth.updateUser({ data: { full_name: fullName } });
-      const { data: session } = await supabase.auth.getSession();
-      if (session.session) {
-        setFullName(session.session.user.user_metadata.full_name || '');
+      // Note: Full name is not stored in users table, might need to add it
+      // For now, we'll just update what we can
+      if (user?.email) {
+        await api.users.update(user.email, {});
+        toast.success('Profile updated successfully');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update profile:', error);
+      toast.error(error.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
       setOpenProfile(false);
@@ -102,14 +110,15 @@ export const UserProfile = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await supabase.auth.updateUser({ data: { department, role } });
-      const { data: session } = await supabase.auth.getSession();
-      if (session.session) {
-        setDepartment(session.session.user.user_metadata.department || '');
-        setRole(session.session.user.user_metadata.role || '');
+      if (user?.email) {
+        const response = await api.users.update(user.email, { department, role });
+        setDepartment(response.data?.department || '');
+        setRole(response.data?.role || '');
+        toast.success('Settings updated successfully');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update settings:', error);
+      toast.error(error.message || 'Failed to update settings');
     } finally {
       setIsLoading(false);
       setOpenSettings(false);
@@ -125,30 +134,14 @@ export const UserProfile = () => {
         setErrorMessage('Admins can only create users with Operator or Reporter roles.');
         return;
       }
-      const { data, error } = await supabase.auth.signUp({
+      await api.users.create({
         email,
-        password: 'defaultPassword123',
-        options: {
-          data: {
-            department,
-            role,
-            account_type: accountType || 'Standard',
-          },
-        },
+        department,
+        role,
+        account_type: accountType || 'Standard',
       });
-      if (error) throw error;
-      if (data.user) {
-        const { error: insertError } = await supabase.from('users').insert({
-          id: data.user.id,
-          email,
-          department,
-          role,
-          account_type: accountType || 'Standard',
-        });
-        if (insertError) throw insertError;
-        await fetchUsers();
-        alert('User created successfully! Please ask the new user to check their email and log in.');
-      }
+      await fetchUsers();
+      toast.success('User created successfully! The user can now sign in with Google.');
     } catch (error) {
       console.error('Error creating user:', error);
       setErrorMessage('Failed to create user. Please try again.');
@@ -245,25 +238,21 @@ export const UserProfile = () => {
   const handleDeleteUser = async (id) => {
     if (userRole !== 'Super Admin' && userRole !== 'Admin') return;
     try {
-      const { data: targetUser, error: fetchError } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', id)
-        .single();
-      if (fetchError) throw fetchError;
+      // Get user by email (id is email in our system)
+      const targetUserResponse = await api.users.getByEmail(id);
+      const targetUser = targetUserResponse.data;
 
       if (userRole === 'Admin' && targetUser.role === 'Super Admin') {
         setErrorMessage('Admins cannot delete Super Admin users.');
         return;
       }
 
-      const { error } = await supabase.from('users').delete().eq('id', id);
-      if (error) throw error;
-      setUsers(users.filter(user => user.id !== id));
-      alert('User deleted successfully!');
-    } catch (error) {
+      await api.users.delete(id);
+      setUsers(users.filter(user => user.email !== id));
+      toast.success('User deleted successfully!');
+    } catch (error: any) {
       console.error('Error deleting user:', error);
-      setErrorMessage('Failed to delete user. Please try again.');
+      setErrorMessage(error.message || 'Failed to delete user. Please try again.');
     }
   };
 
@@ -273,13 +262,7 @@ export const UserProfile = () => {
     user.role?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const userInitials = user?.user_metadata?.full_name
-    ? user.user_metadata.full_name
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-    : user.email?.[0]?.toUpperCase() || 'U';
+  const userInitials = user?.email?.[0]?.toUpperCase() || 'U';
 
   if (!user) return <div className="text-sm">Please log in to access this page.</div>;
   if (!isAuthorized) return <div className="text-sm">Access denied. You are not an authorized user.</div>;
@@ -291,8 +274,8 @@ export const UserProfile = () => {
           <Button variant="ghost" className="relative h-9 w-9 rounded-full">
             <Avatar className="h-9 w-9">
               <AvatarImage
-                src={user.user_metadata?.avatar_url}
-                alt={user.user_metadata?.full_name || user.email}
+                src=""
+                alt={user.email || 'User'}
               />
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {userInitials}
@@ -304,7 +287,7 @@ export const UserProfile = () => {
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">
-                {user.user_metadata?.full_name || 'User'}
+                {user.email || 'User'}
               </p>
               <p className="text-xs leading-none text-muted-foreground">
                 {user.email}

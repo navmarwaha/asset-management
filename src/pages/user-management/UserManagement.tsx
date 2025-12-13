@@ -25,23 +25,24 @@ export const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.from('users').select('*');
-      if (error) throw error;
-      setUsers(data || []);
+      const response = await api.users.getAll();
+      setUsers(response.data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
+      toast.error('Failed to fetch users');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (email: string) => {
     try {
-      const { error } = await supabase.from('users').delete().eq('id', id);
-      if (error) throw error;
+      await api.users.delete(email);
+      toast.success('User deleted successfully');
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error);
+      toast.error(error.message || 'Failed to delete user');
     }
   };
 
@@ -85,7 +86,7 @@ export const UserManagement = () => {
                 <Button variant="ghost" size="icon">
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(user.id)}>
+                <Button variant="ghost" size="icon" onClick={() => handleDelete(user.email)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TableCell>

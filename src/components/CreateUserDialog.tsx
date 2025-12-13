@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { supabase } from '@/lib/supabase';
+import api from '@/lib/api-client';
+import { toast } from 'sonner';
 
 interface CreateUserDialogProps {
   onSuccess: () => void;
@@ -55,35 +56,23 @@ export const CreateUserDialog = ({ onSuccess }: CreateUserDialogProps) => {
 
   const handleCreate = async () => {
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name, // Optional: Store in user_metadata if needed elsewhere
-            department,
-            role,
-          },
-        },
-      });
-      if (authError) throw authError;
-
-      // Insert into users table to make it appear in the list
-      const { error: insertError } = await supabase.from('users').insert({
-        id: authData.user?.id,
+      // Note: Since we're using Google OAuth, user creation might need to be handled differently
+      // For now, we'll just create the user record in the database
+      // The user will need to sign in with Google to authenticate
+      await api.users.create({
         email,
         department,
         role,
         account_type: 'Standard',
       });
-      if (insertError) throw insertError;
 
+      toast.success('User created successfully');
       onSuccess();
       setOpen(false);
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating user:', error);
+      toast.error(error.message || 'Failed to create user');
     }
   };
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api-client";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -40,23 +40,8 @@ const EmployeeDetails = () => {
 
   const fetchUserRole = async () => {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user?.email) {
-        console.error('Authentication error or no user:', authError);
-        setUserRole(null);
-        return;
-      }
-      const { data, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('email', user.email)
-        .single();
-      if (error || !data) {
-        console.error('Error fetching user role:', error);
-        setUserRole(null);
-      } else {
-        setUserRole(data.role);
-      }
+      const response = await api.users.getMe();
+      setUserRole(response.data?.role || null);
     } catch (error) {
       console.error('Unexpected error fetching user role:', error);
       setUserRole(null);
@@ -66,17 +51,8 @@ const EmployeeDetails = () => {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('employees')
-        .select('*')
-        .order('employee_id', { ascending: true });
-      
-      if (error) {
-        toast.error('Failed to fetch employees');
-        console.error('Error fetching employees:', error);
-      } else {
-        setEmployees(data || []);
-      }
+      const response = await api.employees.getAll();
+      setEmployees(response.data || []);
     } catch (error) {
       toast.error('Failed to fetch employees');
       console.error('Error:', error);
@@ -283,7 +259,12 @@ const EmployeeDetails = () => {
 
         try {
           setLoading(true);
-          const { error } = await supabase.from('employees').insert(validEmployees);
+          const response = await api.employees.createBulk(validEmployees);
+          if (response.errors > 0) {
+            toast.warning(`Created ${response.created} employees, ${response.errors} errors occurred`);
+          } else {
+            toast.success(`Successfully created ${response.created} employees`);
+          }
 
           if (error) {
             throw error;

@@ -8,7 +8,7 @@ import { AssetForm } from "./AssetForm";
 import { BulkUpload } from "./BulkUpload";
 import { useAssets, useCreateAsset, useUpdateAsset, useUnassignAsset, useDeleteAsset } from "@/hooks/useAssets";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api-client";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import DashboardView from "./DashboardView";
 import AuditView from "./AuditView";
@@ -52,47 +52,21 @@ export const Dashboard = () => {
     const fetchUserAndAuthorize = async () => {
       try {
         console.log("Fetching user data...");
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError) {
-          console.error("Supabase auth error:", authError);
-          toast.error("Authentication error: " + authError.message);
-          setIsAuthorized(false);
-          setUserRole(null);
-          return;
-        }
-
+        const response = await api.auth.getMe();
+        const user = response.user;
+        
         if (user?.email) {
           console.log("User email:", user.email);
           setCurrentUser(user.email);
-          const { data, error } = await supabase
-            .from('users')
-            .select('email, role')
-            .eq('email', user.email)
-            .single();
-          if (error) {
-            console.error("Supabase users table error:", error);
-            toast.error("Failed to fetch user role: " + error.message);
-            setIsAuthorized(false);
-            setUserRole(null);
-            return;
-          }
-          if (data) {
-            console.log("User data:", data);
-            setIsAuthorized(true);
-            setUserRole(data.role);
-          } else {
-            console.error("No user data found for email:", user.email);
-            toast.error("User not found in database.");
-            setIsAuthorized(false);
-            setUserRole(null);
-          }
+          setIsAuthorized(true);
+          setUserRole(user.role || null);
         } else {
           console.error("No user email found");
           toast.error("No user logged in.");
           setIsAuthorized(false);
           setUserRole(null);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Unexpected error in fetchUserAndAuthorize:", error);
         toast.error("Unexpected error during authentication: " + (error.message || "Unknown error"));
         setIsAuthorized(false);
@@ -103,44 +77,24 @@ export const Dashboard = () => {
     fetchUserAndAuthorize();
     fetchPendingCount();
 
-    const intervalId = setInterval(fetchPendingCount, 1000);
-
-    const assetsSubscription = supabase
-      .channel('assets-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'assets' }, (payload) => {
-        console.log("Real-time update received:", payload);
-        refetch();
-      })
-      .subscribe();
-
-    const pendingRequestsSubscription = supabase
-      .channel('pending-requests-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pending_requests' }, () => {
-        console.log("Pending requests update received");
-        fetchPendingCount();
-      })
-      .subscribe();
+    // Polling instead of real-time subscriptions
+    // Poll every 5 seconds for pending requests count
+    const intervalId = setInterval(() => {
+      fetchPendingCount();
+      refetch(); // Also refresh assets
+    }, 5000);
 
     return () => {
-      console.log("Cleaning up subscriptions and interval");
-      assetsSubscription.unsubscribe();
-      pendingRequestsSubscription.unsubscribe();
+      console.log("Cleaning up polling interval");
       clearInterval(intervalId);
     };
   }, []);
 
   const fetchPendingCount = async () => {
     try {
-      const { count, error } = await supabase
-        .from('pending_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
-      if (error) {
-        console.error("Error fetching pending count:", error);
-        return;
-      }
-      console.log("Pending count:", count);
-      setPendingCount(count || 0);
+      const response = await api.pendingRequests.getCount();
+      console.log("Pending count:", response.count);
+      setPendingCount(response.count || 0);
     } catch (error) {
       console.error("Unexpected error in fetchPendingCount:", error);
     }
@@ -148,13 +102,10 @@ export const Dashboard = () => {
 
   const logEditHistory = async (assetId: string, field: string, oldValue: string | null, newValue: string | null) => {
     try {
-      await supabase.from("asset_edit_history").insert({
-        asset_id: assetId,
+      await api.assets.logHistory(assetId, {
         field_changed: field,
         old_value: oldValue,
         new_value: newValue,
-        changed_by: currentUser,
-        changed_at: new Date().toISOString(),
       });
     } catch (error) {
       console.error("Failed to log edit history:", error);
@@ -355,7 +306,8 @@ export const Dashboard = () => {
             asset.created_by = currentUser;
             asset.created_at = new Date().toISOString();
 
-            const { data } = await supabase.from('assets').insert([asset]).select().single();
+            const createResponse = await api.assets.create(asset);
+            const data = createResponse.data;
             await logEditHistory(data.id, "created", null, "Asset Created");
             for (const [field, value] of Object.entries(asset)) {
               if (value !== null && value !== "" && field !== "id" && field !== "created_by" && field !== "created_at" && field !== "updated_by" && field !== "updated_at") {
@@ -497,9 +449,10 @@ export const Dashboard = () => {
       }
 
       if (userRole === 'Operator') {
-        const { data: emp } = await supabase.from('employees').select('email').eq('employee_id', employeeId).single();
+        const empResponse = await api.employees.getById(employeeId);
+        const emp = empResponse.data;
         
-        await supabase.from('pending_requests').insert({
+        await api.pendingRequests.create({
           request_type: 'assign',
           asset_id: assetId,
           requested_by: currentUser,
@@ -567,7 +520,7 @@ export const Dashboard = () => {
       }
 
       if (userRole === 'Operator') {
-        await supabase.from('pending_requests').insert({
+        await api.pendingRequests.create({
           request_type: 'return',
           asset_id: assetId,
           requested_by: currentUser,

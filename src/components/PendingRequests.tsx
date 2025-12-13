@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api-client";
 import { toast } from "sonner";
 import { CheckCircle, XCircle, Eye, X, MessageCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -101,58 +101,28 @@ export const PendingRequests = ({ onRefresh }: { onRefresh?: () => void }) => {
     fetchRequests();
   }, [user]);
 
-  // Fetch user role from Supabase
+  // Fetch user role from API
   const fetchUserRole = async () => {
     if (!user?.email) {
       setUserRole(null);
       return;
     }
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('email', user.email)
-        .single();
-      if (error) throw error;
-      setUserRole(data?.role || null);
+      const response = await api.users.getMe();
+      setUserRole(response.data?.role || null);
     } catch (error: any) {
       console.error('Error fetching user role:', error);
       toast.error('Failed to fetch user role');
     }
   };
 
-  // Fetch pending requests from Supabase
+  // Fetch pending requests from API
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('pending_requests')
-        .select(`
-          *,
-          assets (
-            asset_id,
-            name,
-            type,
-            brand,
-            serial_number,
-            configuration,
-            location,
-            status,
-            assigned_to,
-            employee_id
-          )
-        `)
-        .order('requested_at', { ascending: false });
-
-      // Filter requests for all roles except Super Admin and Admin
-      if (userRole && user?.email && userRole !== 'Super Admin' && userRole !== 'Admin') {
-        query = query.eq('requested_by', user.email);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setRequests((data || []) as PendingRequest[]);
+      const response = await api.pendingRequests.getAll();
+      // The API already handles filtering by user role on the backend
+      setRequests((response.data || []) as PendingRequest[]);
     } catch (error: any) {
       console.error('Error fetching requests:', error);
       toast.error(`Failed to fetch requests: ${error.message || 'Unknown error'}`);
@@ -229,72 +199,51 @@ export const PendingRequests = ({ onRefresh }: { onRefresh?: () => void }) => {
 
       // Update asset based on request type
       if (selectedRequest.request_type === 'assign') {
-        const { error } = await supabase
-          .from('assets')
-          .update({
-            assigned_to: editMode ? editedAssignTo : selectedRequest.assign_to,
-            employee_id: editMode ? editedEmployeeId : selectedRequest.employee_id,
-            status: 'Assigned',
-            assigned_date: new Date().toISOString(),
-            updated_by: user.email,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', selectedRequest.asset_id);
-        if (error) throw error;
+        await api.assets.update(selectedRequest.asset_id, {
+          assigned_to: editMode ? editedAssignTo : selectedRequest.assign_to,
+          employee_id: editMode ? editedEmployeeId : selectedRequest.employee_id,
+          status: 'Assigned',
+          assigned_date: new Date().toISOString(),
+          updated_by: user.email,
+          updated_at: new Date().toISOString(),
+        });
       } else if (selectedRequest.request_type === 'return') {
-        const { error } = await supabase
-          .from('assets')
-          .update({
-            status: editMode ? editedReturnStatus : selectedRequest.return_status || 'Available',
-            assigned_to: null,
-            employee_id: null,
-            assigned_date: null,
-            return_date: new Date().toISOString(),
-            received_by: selectedRequest.received_by || user.email,
-            location: editMode ? editedReturnLocation : selectedRequest.return_location,
-            asset_condition: editMode ? editedAssetCondition : selectedRequest.asset_condition,
-            remarks: editMode ? editedRemarks : selectedRequest.return_remarks,
-            updated_by: user.email,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', selectedRequest.asset_id);
-        if (error) throw error;
+        await api.assets.update(selectedRequest.asset_id, {
+          status: editMode ? editedReturnStatus : selectedRequest.return_status || 'Available',
+          assigned_to: null,
+          employee_id: null,
+          assigned_date: null,
+          return_date: new Date().toISOString(),
+          received_by: selectedRequest.received_by || user.email,
+          location: editMode ? editedReturnLocation : selectedRequest.return_location,
+          asset_condition: editMode ? editedAssetCondition : selectedRequest.asset_condition,
+          remarks: editMode ? editedRemarks : selectedRequest.return_remarks,
+          updated_by: user.email,
+          updated_at: new Date().toISOString(),
+        });
       } else if (selectedRequest.request_type === 'change_location') {
-        const { error } = await supabase
-          .from('assets')
-          .update({
-            location: editMode ? editedReturnLocation : selectedRequest.new_location,
-            updated_by: user.email,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', selectedRequest.asset_id);
-        if (error) throw error;
+        await api.assets.update(selectedRequest.asset_id, {
+          location: editMode ? editedReturnLocation : selectedRequest.new_location,
+          updated_by: user.email,
+          updated_at: new Date().toISOString(),
+        });
       } else if (selectedRequest.request_type === 'change_status') {
-        const { error } = await supabase
-          .from('assets')
-          .update({
-            status: editMode ? editedReturnStatus : selectedRequest.new_status,
-            updated_by: user.email,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', selectedRequest.asset_id);
-        if (error) throw error;
+        await api.assets.update(selectedRequest.asset_id, {
+          status: editMode ? editedReturnStatus : selectedRequest.new_status,
+          updated_by: user.email,
+          updated_at: new Date().toISOString(),
+        });
       }
 
       // Update request status
-      const { error: requestError } = await supabase
-        .from('pending_requests')
-        .update({
-          status: 'approved',
-          approved_by: user.email,
-          approved_at: new Date().toISOString(),
-          approver_comments: approverComments.trim() || null,
-          original_assigned_to: selectedRequest.request_type === 'return' ? originalAssignedTo : null,
-          original_employee_id: selectedRequest.request_type === 'return' ? originalEmployeeId : null,
-        })
-        .eq('id', selectedRequest.id);
-
-      if (requestError) throw requestError;
+      await api.pendingRequests.update(selectedRequest.id, {
+        status: 'approved',
+        approved_by: user.email,
+        approved_at: new Date().toISOString(),
+        approver_comments: approverComments.trim() || null,
+        original_assigned_to: selectedRequest.request_type === 'return' ? originalAssignedTo : null,
+        original_employee_id: selectedRequest.request_type === 'return' ? originalEmployeeId : null,
+      });
 
       toast.success('Request approved successfully');
       setShowDetailsDialog(false);
@@ -328,17 +277,12 @@ export const PendingRequests = ({ onRefresh }: { onRefresh?: () => void }) => {
 
     setActionLoading(true);
     try {
-      const { error } = await supabase
-        .from('pending_requests')
-        .update({
-          status: 'rejected',
-          approved_by: user.email,
-          approved_at: new Date().toISOString(),
-          approver_comments: approverComments.trim() || null,
-        })
-        .eq('id', selectedRequest.id);
-
-      if (error) throw error;
+      await api.pendingRequests.update(selectedRequest.id, {
+        status: 'rejected',
+        approved_by: user.email,
+        approved_at: new Date().toISOString(),
+        approver_comments: approverComments.trim() || null,
+      });
 
       toast.success('Request rejected successfully');
       setShowDetailsDialog(false);
@@ -371,16 +315,11 @@ export const PendingRequests = ({ onRefresh }: { onRefresh?: () => void }) => {
 
     setActionLoading(true);
     try {
-      const { error } = await supabase
-        .from('pending_requests')
-        .update({
-          status: 'cancelled',
-          cancelled_by: user.email,
-          cancelled_at: new Date().toISOString(),
-        })
-        .eq('id', request.id);
-
-      if (error) throw error;
+      await api.pendingRequests.update(request.id, {
+        status: 'cancelled',
+        cancelled_by: user.email,
+        cancelled_at: new Date().toISOString(),
+      });
 
       toast.success('Request cancelled successfully');
       fetchRequests();

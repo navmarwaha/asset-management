@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import api from '@/lib/api-client';
 
 export interface Asset {
   id: string;
@@ -37,39 +37,9 @@ export const useAssets = () => {
   return useQuery({
     queryKey: ['assets'],
     queryFn: async (): Promise<Asset[]> => {
-      let allAssets: Asset[] = [];
-      let start = 0;
-      const pageSize = 1000;
-
-      while (true) {
-        console.log(`Fetching assets batch: rows ${start}-${start + pageSize - 1}`);
-        const { data, error } = await supabase
-          .from('assets')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .range(start, start + pageSize - 1);
-
-        if (error) {
-          console.error('Supabase fetch error:', error.message);
-          throw new Error(`Failed to fetch assets batch: ${error.message}`);
-        }
-
-        if (!data || data.length === 0) {
-          console.log('No more assets to fetch');
-          break;
-        }
-
-        allAssets = [...allAssets, ...data];
-        start += pageSize;
-
-        if (start % (pageSize * 5) === 0) {
-          console.log(`Pausing for 200ms at ${start} rows`);
-          await new Promise(resolve => setTimeout(resolve, 200));
-        }
-      }
-
-      console.log(`Fetched ${allAssets.length} assets in ${Math.ceil(start / pageSize)} batches`);
-      return allAssets;
+      // Fetch all assets without pagination
+      const response = await api.assets.getAllWithoutPagination();
+      return response.data;
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
@@ -82,17 +52,8 @@ export const useCreateAsset = () => {
 
   return useMutation({
     mutationFn: async (asset: Omit<Asset, 'id'>) => {
-      const { data, error } = await supabase
-        .from('assets')
-        .insert([asset])
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Supabase insert error:', error.message);
-        throw new Error(`Failed to create asset: ${error.message}`);
-      }
-      return data;
+      const response = await api.assets.create(asset);
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
@@ -105,18 +66,8 @@ export const useUpdateAsset = () => {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Asset> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('assets')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Supabase update error:', error.message);
-        throw new Error(`Failed to update asset: ${error.message}`);
-      }
-      return data;
+      const response = await api.assets.update(id, updates);
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
@@ -137,16 +88,9 @@ export const useUnassignAsset = () => {
       assetCondition?: string | null;
       status?: string;
     }) => {
-      const { data: currentAsset, error: fetchError } = await supabase
-        .from('assets')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (fetchError) {
-        console.error('Supabase fetch error:', fetchError.message);
-        throw new Error(`Failed to fetch asset: ${fetchError.message}`);
-      }
+      // First fetch current asset
+      const currentAssetResponse = await api.assets.getById(id);
+      const currentAsset = currentAssetResponse.data;
 
       const updatePayload: Partial<Asset> = {
         status: status || 'Available',
@@ -170,18 +114,8 @@ export const useUnassignAsset = () => {
         updatePayload.asset_condition = assetCondition || null;
       }
 
-      const { data, error } = await supabase
-        .from('assets')
-        .update(updatePayload)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Supabase unassign error:', error.message);
-        throw new Error(`Failed to unassign asset: ${error.message}`);
-      }
-      return data;
+      const response = await api.assets.update(id, updatePayload);
+      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
@@ -194,15 +128,7 @@ export const useDeleteAsset = () => {
   
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('assets')
-        .delete()
-        .eq('id', id);
-      
-      if (error) {
-        console.error('Supabase delete error:', error.message);
-        throw new Error(`Failed to delete asset: ${error.message}`);
-      }
+      await api.assets.delete(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assets'] });
