@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -251,11 +251,6 @@ const EmployeeDetails = () => {
             toast.success(`Successfully created ${response.created} employees`);
           }
 
-          if (error) {
-            throw error;
-          }
-
-          toast.success(`Successfully uploaded ${validEmployees.length} employee(s)`);
           await fetchEmployees();
         } catch (error: any) {
           toast.error(`Failed to upload employees: ${error.message}`);
