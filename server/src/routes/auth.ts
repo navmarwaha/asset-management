@@ -29,11 +29,15 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
           }
 
           // Check if user exists in our database
-          const userResult = await query('SELECT * FROM users WHERE email = $1', [email]);
+          let userResult = await query('SELECT * FROM users WHERE email = $1', [email]);
 
           if (userResult.rows.length === 0) {
-            // User doesn't exist - you might want to create them or return error
-            return done(null, { email, profile });
+            // User doesn't exist - create them
+            const insertResult = await query(
+              'INSERT INTO users (email, role, department, account_type) VALUES ($1, $2, $3, $4) RETURNING *',
+              [email, 'Viewer', null, 'Standard']
+            );
+            userResult = insertResult;
           }
 
           const user = userResult.rows[0];
@@ -108,10 +112,15 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
     }
 
     // Get user details from database
-    const result = await query('SELECT * FROM users WHERE email = $1', [req.user.email]);
+    let result = await query('SELECT * FROM users WHERE email = $1', [req.user.email]);
 
+    // If user doesn't exist, create them (shouldn't happen, but handle gracefully)
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found in database' });
+      const insertResult = await query(
+        'INSERT INTO users (email, role, department, account_type) VALUES ($1, $2, $3, $4) RETURNING *',
+        [req.user.email, 'Viewer', null, 'Standard']
+      );
+      result = insertResult;
     }
 
     const user = result.rows[0];

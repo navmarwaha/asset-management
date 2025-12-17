@@ -40,6 +40,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = React.useState<{ token: string } | null>(null);
   const [loading, setLoading] = React.useState(true);
 
+  const fetchUser = React.useCallback(async () => {
+    try {
+      const response = await api.auth.getMe();
+      setUser(response.user);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      // Token might be invalid, clear it
+      removeAuthToken();
+      setSession(null);
+      setUser(null);
+      setLoading(false);
+    }
+  }, []);
+
   // Check for token in URL (from OAuth callback)
   React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -62,22 +77,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setLoading(false);
       }
     }
-  }, []);
-
-  const fetchUser = async () => {
-    try {
-      const response = await api.auth.getMe();
-      setUser(response.user);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching user:', error);
-      // Token might be invalid, clear it
-      removeAuthToken();
-      setSession(null);
-      setUser(null);
-      setLoading(false);
-    }
-  };
+  }, [fetchUser]);
 
   const signInWithGoogle = async () => {
     // Redirect to backend OAuth endpoint
