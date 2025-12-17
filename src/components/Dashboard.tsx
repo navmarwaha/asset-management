@@ -44,9 +44,11 @@ export const Dashboard = () => {
   const [currentPage, setCurrentPage] = useState<'dashboard' | 'audit' | 'amcs' | 'summary' | 'orders' | 'employees' | 'about'>('dashboard'); // Updated type
   const [pendingCount, setPendingCount] = useState(0);
 
-  useEffect(() => {
-    console.log("Dashboard state:", { isAuthorized, userRole, currentUser, currentPage, isLoading, error, assetsLength: assets.length });
-  }, [isAuthorized, userRole, currentUser, currentPage, isLoading, error, assets]);
+  // Removed console.log useEffect to prevent unnecessary re-renders
+  // If debugging is needed, use React DevTools or conditional logging
+  // useEffect(() => {
+  //   console.log("Dashboard state:", { isAuthorized, userRole, currentUser, currentPage, isLoading, error, assetsLength: assets.length });
+  // }, [isAuthorized, userRole, currentUser, currentPage, isLoading, error, assets.length]);
 
   useEffect(() => {
     const fetchUserAndAuthorize = async () => {
