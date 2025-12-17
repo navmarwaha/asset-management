@@ -144,7 +144,8 @@ router.get('/me', authenticateToken, async (req: Request, res: Response) => {
  * POST /api/auth/logout
  * Logout (client-side token removal, this is just for consistency)
  */
-router.post('/logout', authenticateToken, (req: AuthRequest, res: Response) => {
+router.post('/logout', authenticateToken, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   res.json({ message: 'Logged out successfully' });
 });
 
