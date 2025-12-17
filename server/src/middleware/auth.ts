@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import jwt from 'jsonwebtoken';
 
 export interface AuthRequest extends Request {
@@ -14,17 +14,19 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 /**
  * Middleware to verify JWT token and attach user to request
  */
-export const authenticateToken = async (
-  req: AuthRequest,
+export const authenticateToken: RequestHandler = (
+  req: Request,
   res: Response,
   next: NextFunction
-) => {
+): void => {
+  const authReq = req as AuthRequest;
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
-      return res.status(401).json({ error: 'Access token required' });
+      res.status(401).json({ error: 'Access token required' });
+      return;
     }
 
     const decoded = jwt.verify(token, JWT_SECRET) as {
@@ -33,7 +35,7 @@ export const authenticateToken = async (
       role?: string;
     };
 
-    req.user = {
+    authReq.user = {
       id: decoded.id,
       email: decoded.email,
       role: decoded.role,
@@ -42,9 +44,10 @@ export const authenticateToken = async (
     next();
   } catch (error) {
     if (error instanceof jwt.JsonWebTokenError) {
-      return res.status(403).json({ error: 'Invalid or expired token' });
+      res.status(403).json({ error: 'Invalid or expired token' });
+      return;
     }
-    return res.status(500).json({ error: 'Authentication error' });
+    res.status(500).json({ error: 'Authentication error' });
   }
 };
 
@@ -58,10 +61,10 @@ export const generateToken = (user: { id: string; email: string; role?: string }
     role: user.role,
   };
   
-  const expiresIn: string = process.env.JWT_EXPIRES_IN || '7d';
+  const expiresInValue = process.env.JWT_EXPIRES_IN || '7d';
   const options: jwt.SignOptions = {
-    expiresIn,
-  };
+    expiresIn: expiresInValue,
+  } as jwt.SignOptions;
   
   return jwt.sign(payload, JWT_SECRET, options);
 };
@@ -69,11 +72,12 @@ export const generateToken = (user: { id: string; email: string; role?: string }
 /**
  * Optional authentication - doesn't fail if no token
  */
-export const optionalAuth = async (
-  req: AuthRequest,
+export const optionalAuth: RequestHandler = (
+  req: Request,
   res: Response,
   next: NextFunction
-) => {
+): void => {
+  const authReq = req as AuthRequest;
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -84,7 +88,7 @@ export const optionalAuth = async (
         email: string;
         role?: string;
       };
-      req.user = {
+      authReq.user = {
         id: decoded.id,
         email: decoded.email,
         role: decoded.role,
