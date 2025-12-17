@@ -80,29 +80,12 @@ const EmployeeDetails = () => {
       
       if (editingId) {
         // Update existing employee
-        const { error } = await supabase
-          .from('employees')
-          .update(employeeData)
-          .eq('employee_id', editingId);
-        
-        if (error) {
-          toast.error('Failed to update employee');
-          console.error('Update error:', error);
-          return;
-        }
+        await api.employees.update(editingId, employeeData);
         result = { success: true, message: 'Employee updated successfully' };
         setEditingId(null);
       } else {
         // Add new employee
-        const { error } = await supabase
-          .from('employees')
-          .insert([employeeData]);
-        
-        if (error) {
-          toast.error('Failed to add employee');
-          console.error('Insert error:', error);
-          return;
-        }
+        await api.employees.create(employeeData);
         result = { success: true, message: 'Employee added successfully' };
       }
       
@@ -146,16 +129,7 @@ const EmployeeDetails = () => {
 
     try {
       setLoading(true);
-      const { error } = await supabase
-        .from('employees')
-        .delete()
-        .eq('employee_id', employee_id);
-      
-      if (error) {
-        toast.error('Failed to delete employee');
-        console.error('Delete error:', error);
-        return;
-      }
+      await api.employees.delete(employee_id);
       
       toast.success('Employee deleted successfully');
       await fetchEmployees();

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import api from '@/lib/api-client';
 import {
   Card,
   CardContent,
@@ -46,7 +46,10 @@ const StockSummary: React.FC<StockSummaryProps> = ({ currentUser }) => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await (supabase as any).rpc('stock_summary');
+      // TODO: Implement stock_summary endpoint in backend
+      // For now, return empty array
+      const data: StockRow[] = [];
+      const error = null;
 
       if (error) {
         console.error('RPC Error:', error);

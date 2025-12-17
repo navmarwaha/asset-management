@@ -195,16 +195,12 @@ export const UserProfile = () => {
     setErrorMessage('');
     setIsFormSubmitted(true);
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({
-          email,
-          department,
-          role: userRole === 'Admin' ? (selectedUser.id === user.id ? selectedUser.role : role) : role,
-          account_type: accountType,
-        })
-        .eq('id', selectedUser.id);
-      if (error) throw error;
+      await api.users.update(selectedUser.email, {
+        email,
+        department,
+        role: userRole === 'Admin' ? (selectedUser.id === user.id ? selectedUser.role : role) : role,
+        account_type: accountType,
+      });
       await fetchUsers();
       if (isFormSubmitted) {
         alert('User updated successfully!');

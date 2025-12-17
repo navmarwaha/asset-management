@@ -15,7 +15,7 @@ import { useAssetHistory } from "@/hooks/useAssetHistory";
 import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EnhancedBarcodeScanner } from "./EnhancedBarcodeScanner";
-import { supabase } from "@/integrations/supabase/client";
+// Supabase removed - using API client instead
 import { toast } from "sonner";
 import { generateDispatchEmailSubject, generateDispatchEmailBody, generateReceiveEmailSubject, generateReceiveEmailBody, openGmailCompose } from "@/lib/emailTemplates";
 

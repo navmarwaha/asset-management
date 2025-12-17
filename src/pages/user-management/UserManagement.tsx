@@ -12,7 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Pencil, Trash2 } from 'lucide-react';
 import { CreateUserDialog } from '@/components/CreateUserDialog';
-import { supabase } from '@/lib/supabase';
+import api from '@/lib/api-client';
+import { toast } from 'sonner';
 
 export const UserManagement = () => {
   const [users, setUsers] = useState<any[]>([]);

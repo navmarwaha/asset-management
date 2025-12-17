@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import api from '@/lib/api-client';
 import {
   Table,
   TableBody,
@@ -74,26 +74,8 @@ const ViewOrders: React.FC<ViewOrdersProps> = ({ currentUser, userRole }) => {
   const fetchOrders = async () => {
   try {
     setLoading(true);
-    const { data, error } = await (supabase as any)
-      .from('orders')
-      .select(`
-        id,
-        order_type,
-        asset_type,
-        model,
-        quantity,
-        warehouse,
-        sales_order,
-        employee_id,
-        employee_name,
-        serial_numbers,
-        order_date,
-        created_by
-      `)
-      .order('order_date', { ascending: false });
-
-    if (error) throw error;
-    setOrders(data || []);
+    const response = await api.orders.getAll();
+    setOrders(response.data || []);
     setCurrentPage(1); // Reset to first page on new fetch
   } catch (err: any) {
     alert('Error loading orders: ' + err.message);
@@ -108,10 +90,8 @@ const ViewOrders: React.FC<ViewOrdersProps> = ({ currentUser, userRole }) => {
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    const { error } = await (supabase as any).from('orders').delete().eq('id', deleteId);
-    if (error) {
-      alert('Failed to delete: ' + error.message);
-    } else {
+    try {
+      await api.orders.delete(deleteId);
       setOrders((prevOrders) => {
         const filtered = prevOrders.filter(o => o.id !== deleteId);
         if (currentPage > Math.ceil(filtered.length / rowsPerPage)) {
@@ -119,6 +99,8 @@ const ViewOrders: React.FC<ViewOrdersProps> = ({ currentUser, userRole }) => {
         }
         return filtered;
       });
+    } catch (error: any) {
+      alert('Failed to delete: ' + error.message);
     }
     setDeleteId(null);
   };

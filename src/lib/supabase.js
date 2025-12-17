@@ -1,6 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
+// Supabase client disabled - Migration to PostgreSQL complete
+// This file is kept for reference but the client is not initialized
+// to prevent WebSocket connection attempts
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = null;

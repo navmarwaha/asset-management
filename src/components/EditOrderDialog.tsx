@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import api from '@/lib/api-client';
 import {
   Dialog,
   DialogContent,
@@ -57,16 +57,14 @@ const EditOrderDialog: React.FC<EditOrderDialogProps> = ({
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const { data, error } = await (supabase as any)
-      .from('orders')
-      .update({
-        sales_order: form.sales_order,
-        quantity: form.quantity,
-        employee_name: form.employee_name,
-        employee_id: form.employee_id,
-        warehouse: form.warehouse,
-        model: form.model || null,
-        serial_numbers: serials,
+    const { data, error } = await api.orders.update(order.id, {
+      sales_order: form.sales_order,
+      quantity: form.quantity,
+      employee_name: form.employee_name,
+      employee_id: form.employee_id,
+      warehouse: form.warehouse,
+      model: form.model || null,
+      serial_numbers: serials,
       })
       .eq('id', order.id)
       .select()
