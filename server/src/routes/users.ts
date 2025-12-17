@@ -30,11 +30,11 @@ router.get('/', requireAdmin, async (req: Request, res: Response) => {
 router.get('/me', async (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   try {
-    if (!req.user?.email) {
+    if (!authReq.user?.email) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    const result = await query('SELECT * FROM users WHERE email = $1', [req.user.email]);
+    const result = await query('SELECT * FROM users WHERE email = $1', [authReq.user.email]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -116,8 +116,8 @@ router.put('/:email', async (req: Request, res: Response) => {
     const { role, department, account_type } = req.body;
 
     // Users can only update their own profile unless they're admin
-    const isAdmin = req.user?.role === 'Super Admin' || req.user?.role === 'Admin';
-    if (!isAdmin && req.user?.email !== email) {
+    const isAdmin = authReq.user?.role === 'Super Admin' || authReq.user?.role === 'Admin';
+    if (!isAdmin && authReq.user?.email !== email) {
       return res.status(403).json({ error: 'Not authorized to update this user' });
     }
 
@@ -176,7 +176,7 @@ router.delete('/:email', requireAdmin, async (req: Request, res: Response) => {
     const { email } = req.params;
 
     // Prevent deleting yourself
-    if (req.user?.email === email) {
+    if (authReq.user?.email === email) {
       return res.status(400).json({ error: 'Cannot delete your own account' });
     }
 

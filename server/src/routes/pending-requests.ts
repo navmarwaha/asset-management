@@ -38,9 +38,9 @@ router.get('/', async (req: Request, res: Response) => {
     let paramIndex = 1;
 
     // Filter by user role - non-admins only see their own requests
-    if (req.user?.role && req.user.role !== 'Super Admin' && req.user.role !== 'Admin') {
+    if (authReq.user?.role && authReq.user.role !== 'Super Admin' && authReq.user.role !== 'Admin') {
       sql += ` WHERE pr.requested_by = $${paramIndex}`;
-      params.push(req.user.email);
+      params.push(authReq.user.email);
       paramIndex++;
     }
 
@@ -133,7 +133,7 @@ router.post('/', async (req: Request, res: Response) => {
       asset_value_recovery,
     } = req.body;
 
-    if (!request_type || !asset_id || !req.user?.email) {
+    if (!request_type || !asset_id || !authReq.user?.email) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -163,7 +163,7 @@ router.post('/', async (req: Request, res: Response) => {
       [
         request_type,
         asset_id,
-        req.user.email,
+        authReq.user.email,
         now,
         'pending',
         assign_to || null,
@@ -213,7 +213,7 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response) => {
 
     if (status === 'approved') {
       updateFields.push(`approved_by = $${paramIndex}`);
-      updateValues.push(req.user?.email || 'unknown_user');
+      updateValues.push(authReq.user?.email || 'unknown_user');
       paramIndex++;
       updateFields.push(`approved_at = $${paramIndex}`);
       updateValues.push(now);
@@ -231,7 +231,7 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response) => {
       }
     } else if (status === 'cancelled') {
       updateFields.push(`cancelled_by = $${paramIndex}`);
-      updateValues.push(req.user?.email || 'unknown_user');
+      updateValues.push(authReq.user?.email || 'unknown_user');
       paramIndex++;
       updateFields.push(`cancelled_at = $${paramIndex}`);
       updateValues.push(now);
@@ -288,8 +288,8 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Request not found' });
     }
 
-    const isAdmin = req.user?.role === 'Super Admin' || req.user?.role === 'Admin';
-    const isOwner = checkResult.rows[0].requested_by === req.user?.email;
+    const isAdmin = authReq.user?.role === 'Super Admin' || authReq.user?.role === 'Admin';
+    const isOwner = checkResult.rows[0].requested_by === authReq.user?.email;
 
     if (!isAdmin && !isOwner) {
       return res.status(403).json({ error: 'Not authorized to delete this request' });

@@ -179,7 +179,7 @@ router.put('/:id', requireOperator, async (req: Request, res: Response) => {
     }
 
     updateFields.push(`updated_by = $${paramIndex}`);
-    updateValues.push(req.user?.email || 'unknown_user');
+    updateValues.push(authReq.user?.email || 'unknown_user');
     paramIndex++;
     updateFields.push(`updated_at = $${paramIndex}`);
     updateValues.push(new Date().toISOString());
