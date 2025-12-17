@@ -77,6 +77,15 @@ app.listen(PORT, () => {
   console.log(`🌐 Frontend URL: ${FRONTEND_URL}`);
 });
 
+// Prevent stdin from being read (fixes EBADF error with nohup)
+if (process.stdin.isTTY) {
+  process.stdin.setRawMode(false);
+}
+process.stdin.resume();
+process.stdin.on('error', () => {
+  // Ignore stdin errors when running in background
+});
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM signal received: closing HTTP server');
@@ -88,5 +97,24 @@ process.on('SIGINT', async () => {
   console.log('SIGINT signal received: closing HTTP server');
   await pool.end();
   process.exit(0);
+});
+
+// Handle uncaught errors
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit on uncaught exceptions in production
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit on unhandled rejections in production
+  if (process.env.NODE_ENV === 'production') {
+    return;
+  }
+  process.exit(1);
 });
 

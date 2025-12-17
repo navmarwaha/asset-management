@@ -9,6 +9,7 @@ import { BulkUpload } from "./BulkUpload";
 import { useAssets, useCreateAsset, useUpdateAsset, useUnassignAsset, useDeleteAsset } from "@/hooks/useAssets";
 import { toast } from "sonner";
 import api from "@/lib/api-client";
+import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import DashboardView from "./DashboardView";
 import AuditView from "./AuditView";
@@ -38,45 +39,14 @@ export const Dashboard = () => {
   const updateAssetMutation = useUpdateAsset();
   const unassignAssetMutation = useUnassignAsset();
   const deleteAssetMutation = useDeleteAsset();
-  const [currentUser, setCurrentUser] = useState<string>("unknown_user");
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'audit' | 'amcs' | 'summary' | 'orders' | 'employees' | 'about'>('dashboard'); // Updated type
+  const { user, loading: authLoading } = useAuth(); // Use AuthContext instead of fetching separately
+  const currentUser = user?.email || "unknown_user";
+  const isAuthorized = !!user;
+  const userRole = user?.role || null;
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'audit' | 'amcs' | 'summary' | 'orders' | 'employees' | 'about'>('dashboard');
   const [pendingCount, setPendingCount] = useState(0);
 
-  // Removed console.log useEffect to prevent unnecessary re-renders
-  // If debugging is needed, use React DevTools or conditional logging
-  // useEffect(() => {
-  //   console.log("Dashboard state:", { isAuthorized, userRole, currentUser, currentPage, isLoading, error, assetsLength: assets.length });
-  // }, [isAuthorized, userRole, currentUser, currentPage, isLoading, error, assets.length]);
-
   useEffect(() => {
-    const fetchUserAndAuthorize = async () => {
-      try {
-        console.log("Fetching user data...");
-        const response = await api.auth.getMe();
-        const user = response.user;
-        
-        if (user?.email) {
-          console.log("User email:", user.email);
-          setCurrentUser(user.email);
-          setIsAuthorized(true);
-          setUserRole(user.role || null);
-        } else {
-          console.error("No user email found");
-          toast.error("No user logged in.");
-          setIsAuthorized(false);
-          setUserRole(null);
-        }
-      } catch (error: any) {
-        console.error("Unexpected error in fetchUserAndAuthorize:", error);
-        toast.error("Unexpected error during authentication: " + (error.message || "Unknown error"));
-        setIsAuthorized(false);
-        setUserRole(null);
-      }
-    };
-
-    fetchUserAndAuthorize();
     fetchPendingCount();
 
     // Polling instead of real-time subscriptions
@@ -87,7 +57,6 @@ export const Dashboard = () => {
     }, 5000);
 
     return () => {
-      console.log("Cleaning up polling interval");
       clearInterval(intervalId);
     };
   }, []);
@@ -95,10 +64,9 @@ export const Dashboard = () => {
   const fetchPendingCount = async () => {
     try {
       const response = await api.pendingRequests.getCount();
-      console.log("Pending count:", response.count);
       setPendingCount(response.count || 0);
     } catch (error) {
-      console.error("Unexpected error in fetchPendingCount:", error);
+      console.error("Error fetching pending count:", error);
     }
   };
 
@@ -809,8 +777,24 @@ export const Dashboard = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Wait for auth to load
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center">Loading...</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center text-gray-500">Please wait while we verify your authentication.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!isAuthorized && !isLoading && !error) {
-    console.log("Rendering access denied UI");
+    // Access denied
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <Card className="w-full max-w-md">
@@ -828,7 +812,7 @@ export const Dashboard = () => {
   }
 
   if (error) {
-    console.log("Rendering error UI:", error.message);
+    // Error state
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <Card className="w-full max-w-md">
@@ -844,7 +828,7 @@ export const Dashboard = () => {
   }
 
   if (isLoading) {
-    console.log("Rendering loading UI");
+    // Loading state
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <Card className="w-full max-w-md">
@@ -860,7 +844,7 @@ export const Dashboard = () => {
   }
 
   const renderContent = () => {
-    console.log("Rendering content for page:", currentPage);
+    // Render content based on current page
     try {
       switch (currentPage) {
         case 'dashboard':
@@ -932,7 +916,7 @@ export const Dashboard = () => {
     }
   };
 
-  console.log("Rendering main Dashboard UI");
+  // Main Dashboard UI
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="border-b bg-white sticky top-0 z-50">

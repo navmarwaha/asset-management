@@ -41,6 +41,7 @@ export const UserProfile = () => {
   useEffect(() => {
     setEmail(user?.email || '');
     setDepartment(user?.department || '');
+    setAccountType(user?.account_type || '');
     checkAuthorization();
     fetchUsers();
     if (user?.role) {
@@ -91,11 +92,36 @@ export const UserProfile = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // Note: Full name is not stored in users table, might need to add it
-      // For now, we'll just update what we can
       if (user?.email) {
-        await api.users.update(user.email, {});
+        // Build update object with only fields that can be updated
+        const updates: any = {};
+        
+        // Department can be updated by any user
+        if (department !== undefined && department !== user?.department) {
+          updates.department = department || null;
+        }
+        
+        // Only admins can update role and account_type
+        const isAdmin = userRole === 'Super Admin' || userRole === 'Admin';
+        if (isAdmin && role !== undefined && role !== user?.role) {
+          updates.role = role || null;
+        }
+        if (isAdmin && accountType !== undefined && accountType !== user?.account_type) {
+          updates.account_type = accountType || null;
+        }
+        
+        // Check if there are any fields to update
+        if (Object.keys(updates).length === 0) {
+          toast.info('No changes to save');
+          setIsLoading(false);
+          setOpenProfile(false);
+          return;
+        }
+        
+        await api.users.update(user.email, updates);
         toast.success('Profile updated successfully');
+        // Refresh user data
+        await checkAuthorization();
       }
     } catch (error: any) {
       console.error('Failed to update profile:', error);
@@ -320,14 +346,56 @@ export const UserProfile = () => {
           <form onSubmit={handleUpdateProfile}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="fullName" className="text-right text-sm">Full Name</Label>
+                <Label htmlFor="email" className="text-right text-sm">Email</Label>
                 <Input
-                  id="fullName"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  id="email"
+                  value={email}
+                  disabled
+                  className="col-span-3 text-sm bg-muted"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="department" className="text-right text-sm">Department</Label>
+                <Input
+                  id="department"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="Enter department"
                   className="col-span-3 text-sm"
                 />
               </div>
+              {(userRole === 'Super Admin' || userRole === 'Admin') && (
+                <>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="role" className="text-right text-sm">Role</Label>
+                    <select
+                      id="role"
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      className="col-span-3 text-sm h-9 rounded-md border border-input bg-background px-3 py-1"
+                    >
+                      <option value="">Select role</option>
+                      <option value="Viewer">Viewer</option>
+                      <option value="Operator">Operator</option>
+                      <option value="Admin">Admin</option>
+                      <option value="Super Admin">Super Admin</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="accountType" className="text-right text-sm">Account Type</Label>
+                    <select
+                      id="accountType"
+                      value={accountType}
+                      onChange={(e) => setAccountType(e.target.value)}
+                      className="col-span-3 text-sm h-9 rounded-md border border-input bg-background px-3 py-1"
+                    >
+                      <option value="">Select account type</option>
+                      <option value="Standard">Standard</option>
+                      <option value="Premium">Premium</option>
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
             <DialogFooter>
               <Button type="submit" disabled={isLoading} className="text-sm">
