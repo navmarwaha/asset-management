@@ -3,7 +3,16 @@
  * Replaces Supabase client calls
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// Ensure API_BASE_URL always ends with /api
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  // Remove trailing slash if present
+  const baseUrl = envUrl.replace(/\/$/, '');
+  // Add /api if not already present
+  return baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Get auth token from localStorage
 const getAuthToken = (): string | null => {
@@ -36,10 +45,27 @@ async function apiRequest<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const url = `${API_BASE_URL}${endpoint}`;
+  console.log('API Request:', url, { method: options.method || 'GET', headers });
+
+  const response = await fetch(url, {
     ...options,
     headers,
   });
+
+  // Check if response is JSON
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    const text = await response.text();
+    console.error('Non-JSON response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      contentType,
+      url,
+      body: text.substring(0, 200), // First 200 chars
+    });
+    throw new Error(`Expected JSON but received ${contentType}. Status: ${response.status}. URL: ${url}`);
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }));
