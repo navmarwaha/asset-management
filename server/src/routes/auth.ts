@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Response } from 'express';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { query } from '../config/database';
@@ -143,7 +143,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
  * POST /api/auth/logout
  * Logout (client-side token removal, this is just for consistency)
  */
-router.post('/logout', authenticateToken, (req: Request, res: Response) => {
+router.post('/logout', authenticateToken, (req: AuthRequest, res: Response) => {
   res.json({ message: 'Logged out successfully' });
 });
 

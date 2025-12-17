@@ -12,7 +12,7 @@ router.use(authenticateToken);
  * GET /api/users
  * Get all users (admin only)
  */
-router.get('/', requireAdmin, async (req: Request, res: Response) => {
+router.get('/', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const result = await query('SELECT * FROM users ORDER BY email');
     res.json({ data: result.rows });
@@ -49,7 +49,7 @@ router.get('/me', async (req: AuthRequest, res: Response) => {
  * GET /api/users/:email
  * Get user by email
  */
-router.get('/:email', requireAdmin, async (req: Request, res: Response) => {
+router.get('/:email', requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { email } = req.params;
     const result = await query('SELECT * FROM users WHERE email = $1', [email]);

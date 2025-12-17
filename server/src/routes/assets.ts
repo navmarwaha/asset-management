@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Response } from 'express';
 import { query } from '../config/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requireOperator } from '../middleware/authorize';
@@ -12,7 +12,7 @@ router.use(authenticateToken);
  * GET /api/assets
  * Get all assets with pagination support
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 1000;
@@ -49,7 +49,7 @@ router.get('/', async (req: Request, res: Response) => {
  * GET /api/assets/all
  * Get all assets without pagination (for bulk operations)
  */
-router.get('/all', async (req: Request, res: Response) => {
+router.get('/all', async (req: AuthRequest, res: Response) => {
   try {
     const result = await query(
       'SELECT * FROM assets ORDER BY created_at DESC'
@@ -65,7 +65,7 @@ router.get('/all', async (req: Request, res: Response) => {
  * GET /api/assets/:id
  * Get a single asset by ID
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const result = await query('SELECT * FROM assets WHERE id = $1', [id]);
@@ -326,7 +326,7 @@ router.post('/:id/history', requireOperator, async (req: AuthRequest, res: Respo
  * GET /api/assets/:id/history
  * Get edit history for an asset
  */
-router.get('/:id/history', async (req: Request, res: Response) => {
+router.get('/:id/history', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const result = await query(

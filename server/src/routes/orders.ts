@@ -12,7 +12,7 @@ router.use(authenticateToken);
  * GET /api/orders
  * Get all orders with optional filters
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const { orderType, materialType, startDate, endDate } = req.query;
 
@@ -58,7 +58,7 @@ router.get('/', async (req: Request, res: Response) => {
  * GET /api/orders/:id
  * Get a single order by ID
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const result = await query('SELECT * FROM orders WHERE id = $1', [id]);

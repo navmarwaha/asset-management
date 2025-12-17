@@ -57,7 +57,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
  * GET /api/pending-requests/count
  * Get count of pending requests
  */
-router.get('/count', async (req: Request, res: Response) => {
+router.get('/count', async (req: AuthRequest, res: Response) => {
   try {
     const result = await query(
       'SELECT COUNT(*) FROM pending_requests WHERE status = $1',

@@ -12,7 +12,7 @@ router.use(authenticateToken);
  * GET /api/employees
  * Get all employees
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', async (req: AuthRequest, res: Response) => {
   try {
     const result = await query('SELECT * FROM employees ORDER BY employee_name');
     res.json({ data: result.rows });
@@ -26,7 +26,7 @@ router.get('/', async (req: Request, res: Response) => {
  * GET /api/employees/:id
  * Get employee by ID
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const result = await query('SELECT * FROM employees WHERE employee_id = $1', [id]);

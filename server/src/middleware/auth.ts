@@ -52,17 +52,18 @@ export const authenticateToken = async (
  * Generate JWT token for user
  */
 export const generateToken = (user: { id: string; email: string; role?: string }): string => {
-  return jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    },
-    JWT_SECRET,
-    {
-      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-    }
-  );
+  const payload = {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+  };
+  
+  const expiresIn: string = process.env.JWT_EXPIRES_IN || '7d';
+  const options: jwt.SignOptions = {
+    expiresIn,
+  };
+  
+  return jwt.sign(payload, JWT_SECRET, options);
 };
 
 /**
