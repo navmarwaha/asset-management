@@ -13,9 +13,6 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:8080';
 
 // Configure Google OAuth Strategy
 if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
-  console.log('✅ Configuring Google OAuth strategy...');
-  console.log('   Callback URL:', GOOGLE_CALLBACK_URL);
-  
   passport.use(
     'google',
     new GoogleStrategy(
@@ -52,10 +49,6 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
       }
     )
   );
-  console.log('✅ Google OAuth strategy configured successfully');
-} else {
-  console.warn('⚠️  Google OAuth credentials not found. OAuth will not work.');
-  console.warn('   Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env file');
 }
 
 // Serialize user for session
@@ -71,30 +64,7 @@ passport.deserializeUser((user: any, done) => {
  * GET /api/auth/google
  * Initiate Google OAuth login
  */
-router.get('/google', (req: Request, res: Response, next: any) => {
-  console.log('🔵 Google OAuth initiated');
-  console.log('   GOOGLE_CLIENT_ID:', GOOGLE_CLIENT_ID ? '✅ Set' : '❌ Missing');
-  console.log('   GOOGLE_CLIENT_SECRET:', GOOGLE_CLIENT_SECRET ? '✅ Set' : '❌ Missing');
-  console.log('   GOOGLE_CALLBACK_URL:', GOOGLE_CALLBACK_URL);
-  
-  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
-    console.error('❌ Google OAuth credentials not configured');
-    return res.status(500).json({ 
-      error: 'Google OAuth not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment variables.' 
-    });
-  }
-
-  // Authenticate with Google - this should redirect to Google
-  try {
-    passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
-  } catch (error) {
-    console.error('❌ Error in passport.authenticate:', error);
-    return res.status(500).json({ 
-      error: 'Failed to initiate Google OAuth',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 /**
  * GET /api/auth/google/callback
