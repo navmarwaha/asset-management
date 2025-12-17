@@ -206,13 +206,14 @@ const AuditView = ({
     statuses: '',
   });
 
-  useEffect(() => {
-    const typesStr = assetTypes.join(',');
-    const brandsStr = assetBrands.join(',');
-    const configsStr = assetConfigurations.join(',');
-    const locationsStr = assetLocations.join(',');
-    const statusesStr = assetStatuses.join(',');
+  // Create stable string representations of the arrays
+  const typesStr = useMemo(() => assetTypes.join(','), [assetTypes]);
+  const brandsStr = useMemo(() => assetBrands.join(','), [assetBrands]);
+  const configsStr = useMemo(() => assetConfigurations.join(','), [assetConfigurations]);
+  const locationsStr = useMemo(() => assetLocations.join(','), [assetLocations]);
+  const statusesStr = useMemo(() => assetStatuses.join(','), [assetStatuses]);
 
+  useEffect(() => {
     // Only update if the options have actually changed
     const hasChanged = 
       prevOptionsRef.current.types !== typesStr ||
@@ -251,7 +252,7 @@ const AuditView = ({
         return filtered.length !== prev.length ? filtered : prev;
       });
     }
-  }, [assetTypes, assetBrands, assetConfigurations, assetLocations, assetStatuses]);
+  }, [typesStr, brandsStr, configsStr, locationsStr, statusesStr]);
 
   return (
     <>
