@@ -272,7 +272,6 @@ export type Database = {
       }
       users: {
         Row: {
-          account_type: string | null
           created_at: string | null
           department: string | null
           email: string
@@ -280,7 +279,6 @@ export type Database = {
           role: string | null
         }
         Insert: {
-          account_type?: string | null
           created_at?: string | null
           department?: string | null
           email: string
@@ -288,7 +286,6 @@ export type Database = {
           role?: string | null
         }
         Update: {
-          account_type?: string | null
           created_at?: string | null
           department?: string | null
           email?: string

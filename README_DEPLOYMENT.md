@@ -53,8 +53,8 @@ Complete documentation for deploying the Asset Management System.
 
 5. **Create Admin User:**
    ```sql
-   INSERT INTO users (email, role, department, account_type) 
-   VALUES ('your-email@gmail.com', 'Super Admin', 'IT', 'Standard');
+   INSERT INTO users (email, role, department) 
+   VALUES ('your-email@gmail.com', 'Super Admin', 'IT');
    ```
 
 ## 📁 File Structure

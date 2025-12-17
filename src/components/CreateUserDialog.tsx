@@ -29,7 +29,6 @@ export const CreateUserDialog = ({ onSuccess }: CreateUserDialogProps) => {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [createType, setCreateType] = useState('Single user');
-  const [accountType, setAccountType] = useState('Standard (Email & Password)');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -63,7 +62,6 @@ export const CreateUserDialog = ({ onSuccess }: CreateUserDialogProps) => {
         email,
         department,
         role,
-        account_type: 'Standard',
       });
 
       toast.success('User created successfully');
@@ -79,7 +77,6 @@ export const CreateUserDialog = ({ onSuccess }: CreateUserDialogProps) => {
   const resetForm = () => {
     setStep(1);
     setCreateType('Single user');
-    setAccountType('Standard (Email & Password)');
     setName('');
     setEmail('');
     setPassword('');
@@ -101,7 +98,7 @@ export const CreateUserDialog = ({ onSuccess }: CreateUserDialogProps) => {
         </DialogHeader>
         <div className="flex border-b">
           <div className={`flex-1 p-2 text-center ${step === 1 ? 'bg-blue-50 text-blue-600' : 'bg-gray-50'}`}>
-            1 Account type
+            1 Create type
           </div>
           <div className={`flex-1 p-2 text-center ${step === 2 ? 'bg-blue-50 text-blue-600' : 'bg-gray-50'}`}>
             2 Details
@@ -117,18 +114,6 @@ export const CreateUserDialog = ({ onSuccess }: CreateUserDialogProps) => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Single user">Single user</SelectItem>
-                  {/* Add more options if needed */}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="accountType">Select account type *</Label>
-              <Select value={accountType} onValueChange={setAccountType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select account type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Standard (Email & Password)">Standard (Email & Password)</SelectItem>
                   {/* Add more options if needed */}
                 </SelectContent>
               </Select>

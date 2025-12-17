@@ -75,7 +75,7 @@ router.get('/:email', requireAdmin, async (req: Request, res: Response) => {
 router.post('/', requireAdmin, async (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   try {
-    const { email, role, department, account_type } = req.body;
+  const { email, role, department } = req.body;
 
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
@@ -89,10 +89,10 @@ router.post('/', requireAdmin, async (req: Request, res: Response) => {
 
     const now = new Date().toISOString();
     const result = await query(
-      `INSERT INTO users (email, role, department, account_type, created_at)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [email, role || null, department || null, account_type || null, now]
+    `INSERT INTO users (email, role, department, created_at)
+     VALUES ($1, $2, $3, $4)
+     RETURNING *`,
+    [email, role || null, department || null, now]
     );
 
     res.status(201).json({ data: result.rows[0] });
@@ -113,7 +113,7 @@ router.put('/:email', async (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   try {
     const { email } = req.params;
-    const { role, department, account_type } = req.body;
+    const { role, department } = req.body;
 
     // Users can only update their own profile unless they're admin
     const isAdmin = authReq.user?.role === 'Super Admin' || authReq.user?.role === 'Admin';
@@ -135,12 +135,6 @@ router.put('/:email', async (req: Request, res: Response) => {
       updateValues.push(department);
       paramIndex++;
     }
-    if (account_type !== undefined && isAdmin) {
-      updateFields.push(`account_type = $${paramIndex}`);
-      updateValues.push(account_type);
-      paramIndex++;
-    }
-
     if (updateFields.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }

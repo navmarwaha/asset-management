@@ -65,7 +65,6 @@ export const UserManagement = () => {
             <TableHead>Name</TableHead>
             <TableHead>Department</TableHead>
             <TableHead>Email</TableHead>
-            <TableHead>Account Type</TableHead>
             <TableHead className="w-[100px]"></TableHead>
           </TableRow>
         </TableHeader>
@@ -82,7 +81,6 @@ export const UserManagement = () => {
               </TableCell>
               <TableCell>{user.department}</TableCell>
               <TableCell>{user.email}</TableCell>
-              <TableCell>{user.account_type}</TableCell>
               <TableCell className="flex gap-2">
                 <Button variant="ghost" size="icon">
                   <Pencil className="h-4 w-4" />

@@ -93,7 +93,6 @@ CREATE TABLE IF NOT EXISTS public.users (
   email TEXT NOT NULL UNIQUE,
   role TEXT,
   department TEXT,
-  account_type TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
@@ -244,8 +243,8 @@ CREATE TRIGGER update_orders_updated_at
 
 -- Sample user (Super Admin)
 -- Replace 'admin@example.com' with your actual email
--- INSERT INTO public.users (email, role, department, account_type) 
--- VALUES ('admin@example.com', 'Super Admin', 'IT', 'Standard')
+-- INSERT INTO public.users (email, role, department) 
+-- VALUES ('admin@example.com', 'Super Admin', 'IT')
 -- ON CONFLICT (email) DO NOTHING;
 
 -- Sample employee

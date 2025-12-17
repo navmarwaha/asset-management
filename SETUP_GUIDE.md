@@ -278,8 +278,8 @@ GOOGLE_CLIENT_SECRET=your-client-secret
 After setting up the database, add your first admin user:
 
 ```sql
-INSERT INTO public.users (email, role, department, account_type) 
-VALUES ('your-email@gmail.com', 'Super Admin', 'IT', 'Standard');
+INSERT INTO public.users (email, role, department) 
+VALUES ('your-email@gmail.com', 'Super Admin', 'IT');
 ```
 
 Replace `your-email@gmail.com` with your Google account email.

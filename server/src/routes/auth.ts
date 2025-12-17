@@ -34,8 +34,8 @@ if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET) {
           if (userResult.rows.length === 0) {
             // User doesn't exist - create them
             const insertResult = await query(
-              'INSERT INTO users (email, role, department, account_type) VALUES ($1, $2, $3, $4) RETURNING *',
-              [email, 'Viewer', null, 'Standard']
+              'INSERT INTO users (email, role, department) VALUES ($1, $2, $3) RETURNING *',
+              [email, 'Viewer', null]
             );
             userResult = insertResult;
           }
@@ -118,8 +118,8 @@ router.get('/me', authenticateToken, async (req: Request, res: Response) => {
     // If user doesn't exist, create them (shouldn't happen, but handle gracefully)
     if (result.rows.length === 0) {
       const insertResult = await query(
-        'INSERT INTO users (email, role, department, account_type) VALUES ($1, $2, $3, $4) RETURNING *',
-        [authReq.user.email, 'Viewer', null, 'Standard']
+        'INSERT INTO users (email, role, department) VALUES ($1, $2, $3) RETURNING *',
+        [authReq.user.email, 'Viewer', null]
       );
       result = insertResult;
     }
@@ -131,7 +131,6 @@ router.get('/me', authenticateToken, async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
         department: user.department,
-        account_type: user.account_type,
       },
     });
   } catch (error) {

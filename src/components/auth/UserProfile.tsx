@@ -29,7 +29,6 @@ export const UserProfile = () => {
   const [email, setEmail] = useState(user?.email || '');
   const [department, setDepartment] = useState(user?.department || '');
   const [role, setRole] = useState('');
-  const [accountType, setAccountType] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -41,7 +40,6 @@ export const UserProfile = () => {
   useEffect(() => {
     setEmail(user?.email || '');
     setDepartment(user?.department || '');
-    setAccountType(user?.account_type || '');
     checkAuthorization();
     fetchUsers();
     if (user?.role) {
@@ -101,13 +99,10 @@ export const UserProfile = () => {
           updates.department = department || null;
         }
         
-        // Only admins can update role and account_type
+        // Only admins can update role
         const isAdmin = userRole === 'Super Admin' || userRole === 'Admin';
         if (isAdmin && role !== undefined && role !== user?.role) {
           updates.role = role || null;
-        }
-        if (isAdmin && accountType !== undefined && accountType !== user?.account_type) {
-          updates.account_type = accountType || null;
         }
         
         // Check if there are any fields to update
@@ -164,7 +159,6 @@ export const UserProfile = () => {
         email,
         department,
         role,
-        account_type: accountType || 'Standard',
       });
       await fetchUsers();
       toast.success('User created successfully! The user can now sign in with Google.');
@@ -178,7 +172,6 @@ export const UserProfile = () => {
         setEmail('');
         setDepartment('');
         setRole('');
-        setAccountType('');
       }
     }
   };
@@ -193,7 +186,6 @@ export const UserProfile = () => {
     setEmail(user.email);
     setDepartment(user.department || '');
     setRole(user.role || '');
-    setAccountType(user.account_type || '');
     setOpenEditUser(true);
     setIsFormSubmitted(false);
   };
@@ -225,7 +217,6 @@ export const UserProfile = () => {
         email,
         department,
         role: userRole === 'Admin' ? (selectedUser.id === user.id ? selectedUser.role : role) : role,
-        account_type: accountType,
       });
       await fetchUsers();
       if (isFormSubmitted) {
@@ -241,7 +232,6 @@ export const UserProfile = () => {
       setEmail('');
       setDepartment('');
       setRole('');
-      setAccountType('');
       setIsFormSubmitted(false);
     }
   };
@@ -252,7 +242,6 @@ export const UserProfile = () => {
     setEmail('');
     setDepartment('');
     setRole('');
-    setAccountType('');
     setErrorMessage('');
     setIsFormSubmitted(false);
   };
@@ -381,19 +370,6 @@ export const UserProfile = () => {
                       <option value="Super Admin">Super Admin</option>
                     </select>
                   </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="accountType" className="text-right text-sm">Account Type</Label>
-                    <select
-                      id="accountType"
-                      value={accountType}
-                      onChange={(e) => setAccountType(e.target.value)}
-                      className="col-span-3 text-sm h-9 rounded-md border border-input bg-background px-3 py-1"
-                    >
-                      <option value="">Select account type</option>
-                      <option value="Standard">Standard</option>
-                      <option value="Premium">Premium</option>
-                    </select>
-                  </div>
                 </>
               )}
             </div>
@@ -456,9 +432,6 @@ export const UserProfile = () => {
                 <th className="w-[120px] py-3 px-4 text-left font-semibold text-sm border-r last:border-r-0 bg-card">
                   Role
                 </th>
-                <th className="w-[120px] py-3 px-4 text-left font-semibold text-sm border-r last:border-r-0 bg-card">
-                  Account Type
-                </th>
                 <th className="w-[100px] py-3 px-4 text-left font-semibold text-sm bg-card">
                   Actions
                 </th>
@@ -467,7 +440,7 @@ export const UserProfile = () => {
             <tbody className="bg-background">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="h-24 text-center text-muted-foreground py-8">
+                  <td colSpan={5} className="h-24 text-center text-muted-foreground py-8">
                     <div className="flex flex-col items-center justify-center space-y-1">
                       <Search className="h-8 w-8 text-muted-foreground" />
                       <p className="text-sm">No users found</p>
@@ -517,11 +490,6 @@ export const UserProfile = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="w-[120px] py-3 px-4 text-sm text-muted-foreground align-top border-r last:border-r-0">
-                      <div className="truncate max-w-[120px]">
-                        {user.account_type || 'Standard'}
-                      </div>
-                    </td>
                     <td className="w-[100px] py-3 px-4 align-top">
                       <div className="flex items-center space-x-1">
                         {(userRole === 'Super Admin' || (userRole === 'Admin' && user.role !== 'Super Admin' && user.role !== 'Admin')) ? (
@@ -569,18 +537,6 @@ export const UserProfile = () => {
             <div className="text-red-500 text-sm mb-4">{errorMessage}</div>
           )}
           <form onSubmit={handleCreateUser} className="space-y-4 py-4 overflow-y-auto max-h-[50vh]">
-            <div>
-              <Label htmlFor="accountType" className="text-sm">Account Type *</Label>
-              <select id="accountType" className="w-full p-2 border rounded text-sm" value={accountType} onChange={(e) => setAccountType(e.target.value)}>
-                <option value="">Select Account Type</option>
-                <option value="0">0</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-              </select>
-            </div>
             <div>
               <Label htmlFor="email" className="text-sm">Email *</Label>
               <Input
@@ -673,18 +629,6 @@ export const UserProfile = () => {
                 )}
                 <option value="Operator">Operator</option>
                 <option value="Reporter">Reporter</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="editAccountType" className="text-sm">Account Type *</Label>
-              <select id="editAccountType" className="w-full p-2 border rounded text-sm" value={accountType} onChange={(e) => setAccountType(e.target.value)}>
-                <option value="">Select Account Type</option>
-                <option value="0">0</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
               </select>
             </div>
             <DialogFooter>

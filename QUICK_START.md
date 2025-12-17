@@ -93,8 +93,8 @@ npm run dev
 ```bash
 psql -U postgres -d asset_management
 
-INSERT INTO users (email, role, department, account_type) 
-VALUES ('your-email@gmail.com', 'Super Admin', 'IT', 'Standard');
+INSERT INTO users (email, role, department) 
+VALUES ('your-email@gmail.com', 'Super Admin', 'IT');
 ```
 
 Replace `your-email@gmail.com` with your Google account email.
