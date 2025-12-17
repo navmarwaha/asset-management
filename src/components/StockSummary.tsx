@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import api from '@/lib/api-client';
+import { useAutoRefresh } from '@/contexts/AutoRefreshContext';
 import {
   Card,
   CardContent,
@@ -42,7 +43,9 @@ const StockSummary: React.FC<StockSummaryProps> = ({ currentUser }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const fetchSummary = async () => {
+  const { registerRefreshCallback, unregisterRefreshCallback } = useAutoRefresh();
+
+  const fetchSummary = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -69,11 +72,19 @@ const StockSummary: React.FC<StockSummaryProps> = ({ currentUser }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchSummary();
-  }, [currentUser]);
+  }, [currentUser, fetchSummary]);
+
+  // Register refresh callback for auto-refresh
+  useEffect(() => {
+    registerRefreshCallback('stock-summary', fetchSummary);
+    return () => {
+      unregisterRefreshCallback('stock-summary');
+    };
+  }, [registerRefreshCallback, unregisterRefreshCallback, fetchSummary]);
 
   const matchesSearch = (row: StockRow) => {
     const query = searchQuery.toLowerCase();

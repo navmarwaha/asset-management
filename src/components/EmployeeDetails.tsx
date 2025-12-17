@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import api from "@/lib/api-client";
 import { toast } from "sonner";
+import { useAutoRefresh } from "@/contexts/AutoRefreshContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Search, Download, Upload } from "lucide-react";
@@ -33,10 +34,7 @@ const EmployeeDetails = () => {
   const [userRole, setUserRole] = useState<string | null>(null); // Added to track user role
   const rowsPerPage = 10;
 
-  useEffect(() => {
-    fetchEmployees();
-    fetchUserRole(); // Fetch the user's role
-  }, []);
+  const { registerRefreshCallback, unregisterRefreshCallback } = useAutoRefresh();
 
   const fetchUserRole = async () => {
     try {
@@ -48,7 +46,7 @@ const EmployeeDetails = () => {
     }
   };
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.employees.getAll();
@@ -59,7 +57,20 @@ const EmployeeDetails = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchEmployees();
+    fetchUserRole(); // Fetch the user's role
+  }, [fetchEmployees]);
+
+  // Register refresh callback for auto-refresh
+  useEffect(() => {
+    registerRefreshCallback('employee-details', fetchEmployees);
+    return () => {
+      unregisterRefreshCallback('employee-details');
+    };
+  }, [registerRefreshCallback, unregisterRefreshCallback, fetchEmployees]);
 
   const handleAddOrUpdate = async () => {
     if (!newEmployee.employee_id || !newEmployee.employee_name || !newEmployee.email) {

@@ -2,8 +2,11 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Menu, Upload, Plus, Bell, Download } from "lucide-react";
+import { Menu, Upload, Plus, Bell, Download, RefreshCw } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { UserProfile } from "@/components/auth/UserProfile";
+import { useAutoRefresh } from "@/contexts/AutoRefreshContext";
 import { AssetForm } from "./AssetForm";
 import { BulkUpload } from "./BulkUpload";
 import { useAssets, useCreateAsset, useUpdateAsset, useUnassignAsset, useDeleteAsset } from "@/hooks/useAssets";
@@ -45,21 +48,43 @@ export const Dashboard = () => {
   const userRole = user?.role || null;
   const [currentPage, setCurrentPage] = useState<'dashboard' | 'audit' | 'amcs' | 'summary' | 'orders' | 'employees' | 'about'>('dashboard');
   const [pendingCount, setPendingCount] = useState(0);
+  const { autoRefresh, setAutoRefresh, registerRefreshCallback, unregisterRefreshCallback, triggerRefresh } = useAutoRefresh();
 
+  // Register refresh callbacks for Dashboard data
+  useEffect(() => {
+    registerRefreshCallback('dashboard-assets', () => {
+      refetch();
+    });
+    registerRefreshCallback('dashboard-pending', () => {
+      fetchPendingCount();
+    });
+
+    return () => {
+      unregisterRefreshCallback('dashboard-assets');
+      unregisterRefreshCallback('dashboard-pending');
+    };
+  }, [registerRefreshCallback, unregisterRefreshCallback, refetch]);
+
+  // Fetch pending count on mount
   useEffect(() => {
     fetchPendingCount();
+  }, []);
 
-    // Polling instead of real-time subscriptions
-    // Poll every 5 seconds for pending requests count
+  // Auto-refresh polling (only when enabled)
+  useEffect(() => {
+    if (!autoRefresh) {
+      return;
+    }
+
+    // Poll every 5 seconds - trigger all registered refresh callbacks
     const intervalId = setInterval(() => {
-      fetchPendingCount();
-      refetch(); // Also refresh assets
+      triggerRefresh();
     }, 5000);
 
     return () => {
       clearInterval(intervalId);
     };
-  }, []);
+  }, [autoRefresh, triggerRefresh]);
 
   const fetchPendingCount = async () => {
     try {
@@ -955,6 +980,19 @@ export const Dashboard = () => {
                   </Button>
                 </>
               )}
+              <div className="flex items-center gap-2 px-3 py-1.5 border rounded-md bg-background">
+                <RefreshCw className={`h-4 w-4 ${autoRefresh ? 'animate-spin' : ''}`} />
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="auto-refresh"
+                    checked={autoRefresh}
+                    onCheckedChange={setAutoRefresh}
+                  />
+                  <Label htmlFor="auto-refresh" className="text-sm cursor-pointer">
+                    Auto Refresh
+                  </Label>
+                </div>
+              </div>
               <Button 
                 variant="outline" 
                 size="sm" 
