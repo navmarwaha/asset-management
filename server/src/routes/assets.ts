@@ -1,4 +1,4 @@
-import express, { Response } from 'express';
+import express, { Request, Response } from 'express';
 import { query } from '../config/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requireOperator } from '../middleware/authorize';
@@ -12,10 +12,11 @@ router.use(authenticateToken);
  * GET /api/assets
  * Get all assets with pagination support
  */
-router.get('/', async (req: AuthRequest, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const pageSize = parseInt(req.query.pageSize as string) || 1000;
+    const page = parseInt(authReq.query.page as string) || 1;
+    const pageSize = parseInt(authReq.query.pageSize as string) || 1000;
     const offset = (page - 1) * pageSize;
 
     // Get total count
@@ -49,7 +50,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
  * GET /api/assets/all
  * Get all assets without pagination (for bulk operations)
  */
-router.get('/all', async (req: AuthRequest, res: Response) => {
+router.get('/all', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const result = await query(
       'SELECT * FROM assets ORDER BY created_at DESC'
@@ -65,9 +67,10 @@ router.get('/all', async (req: AuthRequest, res: Response) => {
  * GET /api/assets/:id
  * Get a single asset by ID
  */
-router.get('/:id', async (req: AuthRequest, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    const { id } = req.params;
+    const { id } = authReq.params;
     const result = await query('SELECT * FROM assets WHERE id = $1', [id]);
 
     if (result.rows.length === 0) {
@@ -85,7 +88,8 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
  * POST /api/assets
  * Create a new asset
  */
-router.post('/', requireOperator, async (req: AuthRequest, res: Response) => {
+router.post('/', requireOperator, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const {
       asset_id,
@@ -107,7 +111,7 @@ router.post('/', requireOperator, async (req: AuthRequest, res: Response) => {
       asset_value_recovery,
       asset_condition,
       created_by,
-    } = req.body;
+    } = authReq.body;
 
     // Validate required fields
     if (!asset_id || !name || !type || !brand || !serial_number || !location) {
@@ -158,9 +162,9 @@ router.post('/', requireOperator, async (req: AuthRequest, res: Response) => {
         warranty_status || null,
         asset_value_recovery || null,
         asset_condition || null,
-        created_by || req.user?.email || 'unknown_user',
+        created_by || authReq.user?.email || 'unknown_user',
         now,
-        req.user?.email || 'unknown_user',
+        authReq.user?.email || 'unknown_user',
         now,
       ]
     );
@@ -180,9 +184,10 @@ router.post('/', requireOperator, async (req: AuthRequest, res: Response) => {
  * PUT /api/assets/:id
  * Update an asset
  */
-router.put('/:id', requireOperator, async (req: AuthRequest, res: Response) => {
+router.put('/:id', requireOperator, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    const { id } = req.params;
+    const { id } = authReq.params;
     const updates = req.body;
 
     // Check if asset exists
@@ -262,14 +267,15 @@ router.put('/:id', requireOperator, async (req: AuthRequest, res: Response) => {
  * DELETE /api/assets/:id
  * Delete an asset (only Super Admin)
  */
-router.delete('/:id', async (req: AuthRequest, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     // Check if user is Super Admin
-    if (req.user?.role !== 'Super Admin') {
+    if (authReq.user?.role !== 'Super Admin') {
       return res.status(403).json({ error: 'Only Super Admin can delete assets' });
     }
 
-    const { id } = req.params;
+    const { id } = authReq.params;
 
     // Delete related edit history first
     await query('DELETE FROM asset_edit_history WHERE asset_id = $1', [id]);
@@ -292,9 +298,10 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
  * POST /api/assets/:id/history
  * Log edit history for an asset
  */
-router.post('/:id/history', requireOperator, async (req: AuthRequest, res: Response) => {
+router.post('/:id/history', requireOperator, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    const { id } = req.params;
+    const { id } = authReq.params;
     const { field_changed, old_value, new_value } = req.body;
 
     if (!field_changed) {
@@ -310,7 +317,7 @@ router.post('/:id/history', requireOperator, async (req: AuthRequest, res: Respo
         field_changed,
         old_value || null,
         new_value || null,
-        req.user?.email || 'unknown_user',
+        authReq.user?.email || 'unknown_user',
         new Date().toISOString(),
       ]
     );
@@ -326,9 +333,10 @@ router.post('/:id/history', requireOperator, async (req: AuthRequest, res: Respo
  * GET /api/assets/:id/history
  * Get edit history for an asset
  */
-router.get('/:id/history', async (req: AuthRequest, res: Response) => {
+router.get('/:id/history', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    const { id } = req.params;
+    const { id } = authReq.params;
     const result = await query(
       `SELECT * FROM asset_edit_history 
        WHERE asset_id = $1 

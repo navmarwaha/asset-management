@@ -1,4 +1,4 @@
-import express, { Response } from 'express';
+import express, { Request, Response } from 'express';
 import { query } from '../config/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/authorize';
@@ -12,7 +12,8 @@ router.use(authenticateToken);
  * GET /api/users
  * Get all users (admin only)
  */
-router.get('/', requireAdmin, async (req: AuthRequest, res: Response) => {
+router.get('/', requireAdmin, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const result = await query('SELECT * FROM users ORDER BY email');
     res.json({ data: result.rows });
@@ -26,7 +27,8 @@ router.get('/', requireAdmin, async (req: AuthRequest, res: Response) => {
  * GET /api/users/me
  * Get current user info
  */
-router.get('/me', async (req: AuthRequest, res: Response) => {
+router.get('/me', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     if (!req.user?.email) {
       return res.status(401).json({ error: 'User not authenticated' });
@@ -49,7 +51,8 @@ router.get('/me', async (req: AuthRequest, res: Response) => {
  * GET /api/users/:email
  * Get user by email
  */
-router.get('/:email', requireAdmin, async (req: AuthRequest, res: Response) => {
+router.get('/:email', requireAdmin, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const { email } = req.params;
     const result = await query('SELECT * FROM users WHERE email = $1', [email]);
@@ -69,7 +72,8 @@ router.get('/:email', requireAdmin, async (req: AuthRequest, res: Response) => {
  * POST /api/users
  * Create a new user (admin only)
  */
-router.post('/', requireAdmin, async (req: AuthRequest, res: Response) => {
+router.post('/', requireAdmin, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const { email, role, department, account_type } = req.body;
 
@@ -105,7 +109,8 @@ router.post('/', requireAdmin, async (req: AuthRequest, res: Response) => {
  * PUT /api/users/:email
  * Update a user
  */
-router.put('/:email', async (req: AuthRequest, res: Response) => {
+router.put('/:email', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const { email } = req.params;
     const { role, department, account_type } = req.body;
@@ -165,7 +170,8 @@ router.put('/:email', async (req: AuthRequest, res: Response) => {
  * DELETE /api/users/:email
  * Delete a user (admin only)
  */
-router.delete('/:email', requireAdmin, async (req: AuthRequest, res: Response) => {
+router.delete('/:email', requireAdmin, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const { email } = req.params;
 

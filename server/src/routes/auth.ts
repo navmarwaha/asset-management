@@ -1,4 +1,4 @@
-import express, { Response } from 'express';
+import express, { Request, Response } from 'express';
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { query } from '../config/database';
@@ -105,20 +105,21 @@ router.get(
  * GET /api/auth/me
  * Get current authenticated user
  */
-router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/me', authenticateToken, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    if (!req.user?.email) {
+    if (!authReq.user?.email) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
     // Get user details from database
-    let result = await query('SELECT * FROM users WHERE email = $1', [req.user.email]);
+    let result = await query('SELECT * FROM users WHERE email = $1', [authReq.user.email]);
 
     // If user doesn't exist, create them (shouldn't happen, but handle gracefully)
     if (result.rows.length === 0) {
       const insertResult = await query(
         'INSERT INTO users (email, role, department, account_type) VALUES ($1, $2, $3, $4) RETURNING *',
-        [req.user.email, 'Viewer', null, 'Standard']
+        [authReq.user.email, 'Viewer', null, 'Standard']
       );
       result = insertResult;
     }
@@ -126,7 +127,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
     const user = result.rows[0];
     res.json({
       user: {
-        id: user.id || user.email,
+        id: user.id || authReq.user.email,
         email: user.email,
         role: user.role,
         department: user.department,
@@ -151,17 +152,18 @@ router.post('/logout', authenticateToken, (req: AuthRequest, res: Response) => {
  * POST /api/auth/refresh
  * Refresh JWT token
  */
-router.post('/refresh', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.post('/refresh', authenticateToken, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    if (!req.user) {
+    if (!authReq.user) {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
     // Generate new token
     const token = generateToken({
-      id: req.user.id,
-      email: req.user.email,
-      role: req.user.role,
+      id: authReq.user.id,
+      email: authReq.user.email,
+      role: authReq.user.role,
     });
 
     res.json({ token });

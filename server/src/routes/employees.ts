@@ -1,4 +1,4 @@
-import express, { Response } from 'express';
+import express, { Request, Response } from 'express';
 import { query } from '../config/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requireOperator } from '../middleware/authorize';
@@ -12,7 +12,8 @@ router.use(authenticateToken);
  * GET /api/employees
  * Get all employees
  */
-router.get('/', async (req: AuthRequest, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const result = await query('SELECT * FROM employees ORDER BY employee_name');
     res.json({ data: result.rows });
@@ -26,9 +27,10 @@ router.get('/', async (req: AuthRequest, res: Response) => {
  * GET /api/employees/:id
  * Get employee by ID
  */
-router.get('/:id', async (req: AuthRequest, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    const { id } = req.params;
+    const { id } = authReq.params;
     const result = await query('SELECT * FROM employees WHERE employee_id = $1', [id]);
 
     if (result.rows.length === 0) {
@@ -46,7 +48,8 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
  * POST /api/employees
  * Create a new employee
  */
-router.post('/', requireOperator, async (req: AuthRequest, res: Response) => {
+router.post('/', requireOperator, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const { employee_id, employee_name, email, department, role } = req.body;
 
@@ -82,9 +85,10 @@ router.post('/', requireOperator, async (req: AuthRequest, res: Response) => {
  * POST /api/employees/bulk
  * Create multiple employees
  */
-router.post('/bulk', requireOperator, async (req: AuthRequest, res: Response) => {
+router.post('/bulk', requireOperator, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    const { employees } = req.body;
+    const { employees } = authReq.body;
 
     if (!Array.isArray(employees) || employees.length === 0) {
       return res.status(400).json({ error: 'employees array is required' });
@@ -137,9 +141,10 @@ router.post('/bulk', requireOperator, async (req: AuthRequest, res: Response) =>
  * PUT /api/employees/:id
  * Update an employee
  */
-router.put('/:id', requireOperator, async (req: AuthRequest, res: Response) => {
+router.put('/:id', requireOperator, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    const { id } = req.params;
+    const { id } = authReq.params;
     const { employee_name, email, department, role } = req.body;
 
     const updateFields: string[] = [];
@@ -199,9 +204,10 @@ router.put('/:id', requireOperator, async (req: AuthRequest, res: Response) => {
  * DELETE /api/employees/:id
  * Delete an employee
  */
-router.delete('/:id', requireOperator, async (req: AuthRequest, res: Response) => {
+router.delete('/:id', requireOperator, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    const { id } = req.params;
+    const { id } = authReq.params;
     const result = await query('DELETE FROM employees WHERE employee_id = $1 RETURNING *', [id]);
 
     if (result.rows.length === 0) {

@@ -1,4 +1,4 @@
-import express, { Response } from 'express';
+import express, { Request, Response } from 'express';
 import { query } from '../config/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requireOperator } from '../middleware/authorize';
@@ -12,9 +12,10 @@ router.use(authenticateToken);
  * GET /api/orders
  * Get all orders with optional filters
  */
-router.get('/', async (req: AuthRequest, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    const { orderType, materialType, startDate, endDate } = req.query;
+    const { orderType, materialType, startDate, endDate } = authReq.query;
 
     let sql = 'SELECT * FROM orders WHERE 1=1';
     const params: any[] = [];
@@ -58,9 +59,10 @@ router.get('/', async (req: AuthRequest, res: Response) => {
  * GET /api/orders/:id
  * Get a single order by ID
  */
-router.get('/:id', async (req: AuthRequest, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    const { id } = req.params;
+    const { id } = authReq.params;
     const result = await query('SELECT * FROM orders WHERE id = $1', [id]);
 
     if (result.rows.length === 0) {
@@ -78,7 +80,8 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
  * POST /api/orders
  * Create a new order
  */
-router.post('/', requireOperator, async (req: AuthRequest, res: Response) => {
+router.post('/', requireOperator, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const {
       order_type,
@@ -96,7 +99,7 @@ router.post('/', requireOperator, async (req: AuthRequest, res: Response) => {
       product,
       sd_card_size,
       profile_id,
-    } = req.body;
+    } = authReq.body;
 
     if (!order_type || !material_type || !asset_type || !model || !quantity || !warehouse) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -128,9 +131,9 @@ router.post('/', requireOperator, async (req: AuthRequest, res: Response) => {
         product || 'Lead',
         sd_card_size || null,
         profile_id || null,
-        req.user?.email || 'unknown_user',
+        authReq.user?.email || 'unknown_user',
         now,
-        req.user?.email || 'unknown_user',
+        authReq.user?.email || 'unknown_user',
         now,
       ]
     );
@@ -146,10 +149,11 @@ router.post('/', requireOperator, async (req: AuthRequest, res: Response) => {
  * PUT /api/orders/:id
  * Update an order
  */
-router.put('/:id', requireOperator, async (req: AuthRequest, res: Response) => {
+router.put('/:id', requireOperator, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    const { id } = req.params;
-    const updates = req.body;
+    const { id } = authReq.params;
+    const updates = authReq.body;
 
     const allowedFields = [
       'order_type', 'material_type', 'asset_type', 'model', 'quantity',
@@ -205,9 +209,10 @@ router.put('/:id', requireOperator, async (req: AuthRequest, res: Response) => {
  * DELETE /api/orders/:id
  * Delete an order
  */
-router.delete('/:id', requireOperator, async (req: AuthRequest, res: Response) => {
+router.delete('/:id', requireOperator, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
-    const { id } = req.params;
+    const { id } = authReq.params;
     const result = await query('DELETE FROM orders WHERE id = $1 RETURNING *', [id]);
 
     if (result.rows.length === 0) {

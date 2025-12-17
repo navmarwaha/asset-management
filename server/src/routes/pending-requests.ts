@@ -1,4 +1,4 @@
-import express, { Response } from 'express';
+import express, { Request, Response } from 'express';
 import { query } from '../config/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/authorize';
@@ -12,7 +12,8 @@ router.use(authenticateToken);
  * GET /api/pending-requests
  * Get all pending requests (filtered by user role)
  */
-router.get('/', async (req: AuthRequest, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     let sql = `
       SELECT 
@@ -57,7 +58,8 @@ router.get('/', async (req: AuthRequest, res: Response) => {
  * GET /api/pending-requests/count
  * Get count of pending requests
  */
-router.get('/count', async (req: AuthRequest, res: Response) => {
+router.get('/count', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const result = await query(
       'SELECT COUNT(*) FROM pending_requests WHERE status = $1',
@@ -74,7 +76,8 @@ router.get('/count', async (req: AuthRequest, res: Response) => {
  * GET /api/pending-requests/:id
  * Get a single pending request
  */
-router.get('/:id', async (req: AuthRequest, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const { id } = req.params;
     const result = await query(
@@ -113,7 +116,8 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
  * POST /api/pending-requests
  * Create a new pending request
  */
-router.post('/', async (req: AuthRequest, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const {
       request_type,
@@ -188,7 +192,8 @@ router.post('/', async (req: AuthRequest, res: Response) => {
  * PUT /api/pending-requests/:id
  * Update a pending request (approve/reject/cancel)
  */
-router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
+router.put('/:id', requireAdmin, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const { id } = req.params;
     const { status, approver_comments, rejection_reason, ...updates } = req.body;
@@ -272,7 +277,8 @@ router.put('/:id', requireAdmin, async (req: AuthRequest, res: Response) => {
  * DELETE /api/pending-requests/:id
  * Delete a pending request
  */
-router.delete('/:id', async (req: AuthRequest, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
   try {
     const { id } = req.params;
 
