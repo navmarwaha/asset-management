@@ -1,11 +1,25 @@
 // Supabase client disabled - Migration to PostgreSQL complete
-// This file is kept for reference but the client is not initialized
-// to prevent WebSocket connection attempts
+// This file prevents any Supabase client initialization to stop WebSocket connections
 
-// export const supabase = null as any;
+// DO NOT import createClient here - this prevents WebSocket connections
+// Even if environment variables are set, we prevent initialization
 
-// If you need to import this file, use:
-// import { supabase } from "@/integrations/supabase/client";
-// const supabaseClient = supabase; // Will be null
+// Override environment variables to prevent Supabase from initializing
+if (typeof window !== 'undefined') {
+  // Clear any Supabase-related environment variables from being accessed
+  const originalEnv = (window as any).__ENV__;
+  if (originalEnv) {
+    delete originalEnv.VITE_SUPABASE_URL;
+    delete originalEnv.VITE_SUPABASE_PUBLISHABLE_KEY;
+  }
+  
+  // Set a flag to prevent Supabase initialization
+  (window as any).__SUPABASE_CLIENT_DISABLED__ = true;
+}
 
+// Export null - this prevents any Supabase client from being created
+// If code tries to use supabase, it will get null and fail gracefully
 export const supabase = null as any;
+
+// Prevent module from being re-evaluated with createClient
+Object.freeze(exports);

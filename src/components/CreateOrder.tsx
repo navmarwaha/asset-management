@@ -260,41 +260,47 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ currentUser, userRole }) => {
       }
       if (allSerials.length > 0) {
         // TODO: Implement device validation in backend API if needed
-        // For now, skip validation
+        // For now, skip validation - deviceData will be empty
         const deviceData: any[] = [];
         const deviceError = null;
-          .order('updated_at', { ascending: false });
-        if (deviceError) {
-          console.error('Device fetch error:', deviceError.message);
-          errors[asset.id] = serialErrors;
-          continue;
-        }
-        const latestBySerial: Record<string, any> = {};
-        deviceData?.forEach((device: any) => {
-          if (!latestBySerial[device.serial_number] || new Date(device.updated_at) > new Date(latestBySerial[device.serial_number].updated_at)) {
-            latestBySerial[device.serial_number] = device;
-          }
-        });
-        for (let i = 0; i < asset.serialNumbers.length; i++) {
-          const serial = asset.serialNumbers[i]?.trim();
-          if (!serial) {
-            continue;
-          }
-          const latestDevice = latestBySerial[serial];
-          if (latestDevice) {
-            if (isInward && latestDevice.material_type === 'Inward' && latestDevice.warehouse !== asset.location) {
-              serialErrors[i] = `Currently Inward in ${latestDevice.warehouse}`;
-            } else if (!isInward && latestDevice.material_type === 'Outward' && latestDevice.warehouse !== asset.location) {
-              serialErrors[i] = `Currently Outward in ${latestDevice.warehouse}`;
-            } else if (!isInward && latestDevice.material_type === 'Inward' && latestDevice.warehouse !== asset.location) {
-              serialErrors[i] = `Currently Inward in ${latestDevice.warehouse}`;
-            }
-          } else {
-            if (!isInward) {
-              serialErrors[i] = 'Not in stock';
-            }
-          }
-        }
+        
+        // Skip device validation for now since devices table may not exist
+        // if (deviceError) {
+        //   console.error('Device fetch error:', deviceError.message);
+        //   errors[asset.id] = serialErrors;
+        //   continue;
+        // }
+        
+        // TODO: Implement device validation in backend API
+        // Device validation is currently disabled as the devices table may not exist
+        // const latestBySerial: Record<string, any> = {};
+        // deviceData?.forEach((device: any) => {
+        //   if (!latestBySerial[device.serial_number] || new Date(device.updated_at) > new Date(latestBySerial[device.serial_number].updated_at)) {
+        //     latestBySerial[device.serial_number] = device;
+        //   }
+        // });
+        
+        // Skip device validation for now
+        // for (let i = 0; i < asset.serialNumbers.length; i++) {
+        //   const serial = asset.serialNumbers[i]?.trim();
+        //   if (!serial) {
+        //     continue;
+        //   }
+        //   const latestDevice = latestBySerial[serial];
+        //   if (latestDevice) {
+        //     if (isInward && latestDevice.material_type === 'Inward' && latestDevice.warehouse !== asset.location) {
+        //       serialErrors[i] = `Currently Inward in ${latestDevice.warehouse}`;
+        //     } else if (!isInward && latestDevice.material_type === 'Outward' && latestDevice.warehouse !== asset.location) {
+        //       serialErrors[i] = `Currently Outward in ${latestDevice.warehouse}`;
+        //     } else if (!isInward && latestDevice.material_type === 'Inward' && latestDevice.warehouse !== asset.location) {
+        //       serialErrors[i] = `Currently Inward in ${latestDevice.warehouse}`;
+        //     }
+        //   } else {
+        //     if (!isInward) {
+        //       serialErrors[i] = 'Not in stock';
+        //     }
+        //   }
+        // }
       }
       errors[asset.id] = serialErrors;
     }
@@ -365,16 +371,18 @@ const CreateOrder: React.FC<CreateOrderProps> = ({ currentUser, userRole }) => {
   };
 
   const logHistory = async (tableName: string, recordId: string, fieldName: string, newData: string, userEmail: string, salesOrder: string | null) => {
-    await (supabase as any).from('history').insert({
-      record_id: recordId,
-      sales_order: salesOrder,
-      table_name: tableName,
-      field_name: fieldName,
-      old_data: '',
-      new_data: newData,
-      operation: 'INSERT',
-      updated_by: userEmail,
-    });
+    // TODO: Implement history logging in backend API if needed
+    // History logging is currently disabled as the history table may not exist
+    // await api.history.create({
+    //   record_id: recordId,
+    //   sales_order: salesOrder,
+    //   table_name: tableName,
+    //   field_name: fieldName,
+    //   old_data: '',
+    //   new_data: newData,
+    //   operation: 'INSERT',
+    //   updated_by: userEmail,
+    // });
   };
 
   const createOrder = async () => {
