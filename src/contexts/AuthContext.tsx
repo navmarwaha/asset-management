@@ -39,8 +39,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = React.useState<User | null>(null);
   const [session, setSession] = React.useState<{ token: string } | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [hasInitialized, setHasInitialized] = React.useState(false);
+  const fetchingRef = React.useRef(false);
 
   const fetchUser = React.useCallback(async () => {
+    // Prevent multiple simultaneous calls
+    if (fetchingRef.current) {
+      return;
+    }
+    
+    fetchingRef.current = true;
     try {
       const response = await api.auth.getMe();
       setUser(response.user);
@@ -52,11 +60,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(null);
       setUser(null);
       setLoading(false);
+    } finally {
+      fetchingRef.current = false;
     }
   }, []);
 
-  // Check for token in URL (from OAuth callback)
+  // Check for token in URL (from OAuth callback) - only run once
   React.useEffect(() => {
+    // Prevent running multiple times
+    if (hasInitialized) {
+      return;
+    }
+    
+    setHasInitialized(true);
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     
@@ -77,7 +93,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setLoading(false);
       }
     }
-  }, [fetchUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   const signInWithGoogle = async () => {
     // Redirect to backend OAuth endpoint
