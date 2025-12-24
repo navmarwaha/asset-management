@@ -85,7 +85,16 @@ export const UserManagement = () => {
                 <Button variant="ghost" size="icon">
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(user.email)}>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDelete(user.email);
+                  }}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TableCell>
