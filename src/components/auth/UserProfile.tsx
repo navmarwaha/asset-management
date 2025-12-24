@@ -246,20 +246,30 @@ export const UserProfile = () => {
     setIsFormSubmitted(false);
   };
 
-  const handleDeleteUser = async (id) => {
+  const handleDeleteUser = async (email: string) => {
     if (userRole !== 'Super Admin' && userRole !== 'Admin') return;
+    
+    // Find the user in the current list to check role (no need for API call)
+    const targetUser = users.find(u => u.email === email);
+    
+    if (!targetUser) {
+      setErrorMessage('User not found');
+      return;
+    }
+
+    if (userRole === 'Admin' && targetUser.role === 'Super Admin') {
+      setErrorMessage('Admins cannot delete Super Admin users.');
+      return;
+    }
+
+    // Confirm deletion
+    if (!confirm(`Are you sure you want to delete user ${email}? This action cannot be undone.`)) {
+      return;
+    }
+
     try {
-      // Get user by email (id is email in our system)
-      const targetUserResponse = await api.users.getByEmail(id);
-      const targetUser = targetUserResponse.data;
-
-      if (userRole === 'Admin' && targetUser.role === 'Super Admin') {
-        setErrorMessage('Admins cannot delete Super Admin users.');
-        return;
-      }
-
-      await api.users.delete(id);
-      setUsers(users.filter(user => user.email !== id));
+      await api.users.delete(email);
+      setUsers(users.filter(user => user.email !== email));
       toast.success('User deleted successfully!');
     } catch (error: any) {
       console.error('Error deleting user:', error);
@@ -506,7 +516,12 @@ export const UserProfile = () => {
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => handleDeleteUser(user.id)}
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDeleteUser(user.email);
+                              }}
                               className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
                               title="Delete user"
                             >

@@ -37,6 +37,11 @@ export const UserManagement = () => {
   };
 
   const handleDelete = async (email: string) => {
+    // Confirm deletion
+    if (!confirm(`Are you sure you want to delete user ${email}? This action cannot be undone.`)) {
+      return;
+    }
+
     try {
       await api.users.delete(email);
       toast.success('User deleted successfully');
@@ -85,7 +90,16 @@ export const UserManagement = () => {
                 <Button variant="ghost" size="icon">
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(user.email)}>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDelete(user.email);
+                  }}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TableCell>
