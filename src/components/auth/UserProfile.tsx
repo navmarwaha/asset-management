@@ -73,6 +73,7 @@ export const UserProfile = () => {
   const fetchUsers = async () => {
     try {
       const response = await api.users.getAll();
+      console.log('Fetched users:', response.data);
       setUsers(response.data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -246,18 +247,24 @@ export const UserProfile = () => {
     setIsFormSubmitted(false);
   };
 
-  const handleDeleteUser = async (email: string) => {
-    if (userRole !== 'Super Admin' && userRole !== 'Admin') return;
+  const handleDeleteUser = async (userToDelete: any) => {
+    console.log('handleDeleteUser called with:', userToDelete);
     
-    // Find the user in the current list to check role (no need for API call)
-    const targetUser = users.find(u => u.email === email);
+    if (userRole !== 'Super Admin' && userRole !== 'Admin') {
+      console.log('User does not have permission');
+      return;
+    }
     
-    if (!targetUser) {
-      setErrorMessage('User not found');
+    // Use the user object directly instead of searching
+    const email = userToDelete?.email;
+    
+    if (!email) {
+      console.error('User object missing email:', userToDelete);
+      setErrorMessage('User email not found. User object: ' + JSON.stringify(userToDelete));
       return;
     }
 
-    if (userRole === 'Admin' && targetUser.role === 'Super Admin') {
+    if (userRole === 'Admin' && userToDelete.role === 'Super Admin') {
       setErrorMessage('Admins cannot delete Super Admin users.');
       return;
     }
@@ -268,7 +275,9 @@ export const UserProfile = () => {
     }
 
     try {
-      await api.users.delete(email);
+      console.log('Calling api.users.delete with email:', email);
+      const result = await api.users.delete(email);
+      console.log('Delete result:', result);
       setUsers(users.filter(user => user.email !== email));
       toast.success('User deleted successfully!');
     } catch (error: any) {
@@ -469,6 +478,12 @@ export const UserProfile = () => {
                     className={`border-b transition-colors ${
                       index % 2 === 0 ? 'bg-background' : 'bg-muted/30'
                     } hover:bg-muted/50`}
+                    onClick={(e) => {
+                      // Prevent row click from interfering with button clicks
+                      if ((e.target as HTMLElement).closest('button')) {
+                        e.stopPropagation();
+                      }
+                    }}
                   >
                     <td className="w-[150px] py-3 px-4 text-sm font-medium text-foreground align-top border-r last:border-r-0">
                       <div className="truncate max-w-[150px]">
@@ -513,20 +528,33 @@ export const UserProfile = () => {
                             >
                               <Edit className="h-3.5 w-3.5" />
                             </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
+                            <button
                               type="button"
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                handleDeleteUser(user.email);
+                                if (e.nativeEvent) {
+                                  e.nativeEvent.stopImmediatePropagation();
+                                }
+                                console.log('Delete button clicked, user object:', user);
+                                console.log('User email:', user.email);
+                                console.log('User id:', user.id);
+                                console.log('All user keys:', Object.keys(user));
+                                handleDeleteUser(user);
+                                return false;
                               }}
-                              className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                              }}
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                              }}
+                              className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
                               title="Delete user"
                             >
                               <Trash className="h-3.5 w-3.5" />
-                            </Button>
+                            </button>
                           </>
                         ) : (
                           <span className="text-xs text-muted-foreground px-2 py-1 bg-muted/50 rounded">Read-only</span>
