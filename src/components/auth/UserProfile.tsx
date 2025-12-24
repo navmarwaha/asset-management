@@ -246,11 +246,11 @@ export const UserProfile = () => {
     setIsFormSubmitted(false);
   };
 
-  const handleDeleteUser = async (email: string) => {
+  const handleDeleteUser = async (id) => {
     if (userRole !== 'Super Admin' && userRole !== 'Admin') return;
     try {
-      // Get user by email to check role
-      const targetUserResponse = await api.users.getByEmail(email);
+      // Get user by email (id is email in our system)
+      const targetUserResponse = await api.users.getByEmail(id);
       const targetUser = targetUserResponse.data;
 
       if (userRole === 'Admin' && targetUser.role === 'Super Admin') {
@@ -258,8 +258,8 @@ export const UserProfile = () => {
         return;
       }
 
-      await api.users.delete(email);
-      setUsers(users.filter(user => user.email !== email));
+      await api.users.delete(id);
+      setUsers(users.filter(user => user.email !== id));
       toast.success('User deleted successfully!');
     } catch (error: any) {
       console.error('Error deleting user:', error);
@@ -506,12 +506,7 @@ export const UserProfile = () => {
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              type="button"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                handleDeleteUser(user.email);
-                              }}
+                              onClick={() => handleDeleteUser(user.id)}
                               className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors"
                               title="Delete user"
                             >
