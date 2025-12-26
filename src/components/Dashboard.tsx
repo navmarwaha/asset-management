@@ -633,9 +633,26 @@ export const Dashboard = () => {
         updates.updated_by = currentUser;
       }
 
+      // Convert camelCase field names to snake_case for backend
+      const backendUpdates: any = {};
+      const fieldMapping: Record<string, string> = {
+        assetId: 'asset_id',
+        serialNumber: 'serial_number',
+        farCode: 'far_code',
+        warrantyStart: 'warranty_start',
+        warrantyEnd: 'warranty_end',
+        employeeId: 'employee_id',
+        employeeName: 'assigned_to',
+      };
+
+      for (const [key, value] of Object.entries(updates)) {
+        const backendKey = fieldMapping[key] || key;
+        backendUpdates[backendKey] = value;
+      }
+
       await updateAssetMutation.mutateAsync({
         id: assetId,
-        ...updates,
+        ...backendUpdates,
       });
 
       for (const [field, newValue] of Object.entries(updates)) {

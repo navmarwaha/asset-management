@@ -93,6 +93,7 @@ const AmcsView = ({
         asset.warranty_start || "",
         asset.warranty_end || "",
         asset.asset_check || "",
+        asset.far_code || "",
       ].some((field) => field.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const dateMatch = !dateRange?.from || !dateRange?.to ||

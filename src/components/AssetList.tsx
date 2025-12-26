@@ -230,7 +230,7 @@ export const AssetList = ({
       asset.received_by || '', asset.assigned_date || '', asset.return_date || '',
       asset.status || '', asset.location || '', asset.warranty_start || '',
       asset.warranty_end || '', asset.provider || '', asset.warranty_status || '',
-      asset.remarks || '',
+      asset.remarks || '', asset.far_code || '',
     ].some(field => 
       field && field.toLowerCase().includes(searchTerm.toLowerCase())
     );

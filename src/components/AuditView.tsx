@@ -99,6 +99,7 @@ const AuditView = ({
             asset.warranty_start || "",
             asset.warranty_end || "",
             asset.asset_check || "",
+            asset.far_code || "",
           ].some((field) => field.toLowerCase().includes(searchQuery.toLowerCase()));
 
         // Date filter (assigned or returned)
