@@ -242,8 +242,10 @@ router.put('/:id', requireOperator, async (req: Request, res: Response) => {
     paramIndex++;
     updateFields.push(`updated_at = $${paramIndex}`);
     updateValues.push(new Date().toISOString());
+    paramIndex++;
 
-    updateValues.push(id); // For WHERE clause
+    // Add id for WHERE clause
+    updateValues.push(id);
 
     const result = await query(
       `UPDATE assets 
