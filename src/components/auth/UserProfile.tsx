@@ -480,8 +480,11 @@ export const UserProfile = () => {
                     } hover:bg-muted/50`}
                     onClick={(e) => {
                       // Prevent row click from interfering with button clicks
-                      if ((e.target as HTMLElement).closest('button')) {
+                      const target = e.target as HTMLElement;
+                      if (target.closest('button') || target.closest('svg') || target.closest('[role="button"]')) {
+                        e.preventDefault();
                         e.stopPropagation();
+                        return;
                       }
                     }}
                   >
@@ -516,45 +519,95 @@ export const UserProfile = () => {
                       </div>
                     </td>
                     <td className="w-[100px] py-3 px-4 align-top">
-                      <div className="flex items-center space-x-1">
+                      <div 
+                        className="flex items-center space-x-1"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                        }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                        }}
+                      >
                         {(userRole === 'Super Admin' || (userRole === 'Admin' && user.role !== 'Super Admin' && user.role !== 'Admin')) ? (
                           <>
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              onClick={() => handleEditUser(user)}
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleEditUser(user);
+                              }}
                               className="h-7 w-7 p-0 text-foreground hover:bg-muted hover:text-primary transition-colors"
                               title="Edit user"
                             >
                               <Edit className="h-3.5 w-3.5" />
                             </Button>
-                            <button
-                              type="button"
+                            <div
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 if (e.nativeEvent) {
                                   e.nativeEvent.stopImmediatePropagation();
                                 }
-                                console.log('Delete button clicked, user object:', user);
-                                console.log('User email:', user.email);
-                                console.log('User id:', user.id);
-                                console.log('All user keys:', Object.keys(user));
-                                handleDeleteUser(user);
-                                return false;
                               }}
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                              }}
-                              onContextMenu={(e) => {
-                                e.preventDefault();
-                              }}
-                              className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-                              title="Delete user"
                             >
-                              <Trash className="h-3.5 w-3.5" />
-                            </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (e.nativeEvent) {
+                                    e.nativeEvent.stopImmediatePropagation();
+                                  }
+                                  console.log('Delete button clicked, user object:', user);
+                                  console.log('User email:', user.email);
+                                  console.log('User id:', user.id);
+                                  console.log('All user keys:', Object.keys(user));
+                                  
+                                  // Ensure we have an email, not an ID
+                                  const emailToDelete = user?.email;
+                                  if (!emailToDelete) {
+                                    console.error('No email found in user object:', user);
+                                    setErrorMessage('User email not found. Cannot delete user.');
+                                    return;
+                                  }
+                                  
+                                  // Double-check it's not a UUID
+                                  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+                                  if (uuidRegex.test(emailToDelete)) {
+                                    console.error('Email appears to be a UUID:', emailToDelete);
+                                    setErrorMessage('Invalid user email. Cannot delete user.');
+                                    return;
+                                  }
+                                  
+                                  handleDeleteUser(user);
+                                  return false;
+                                }}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (e.nativeEvent) {
+                                    e.nativeEvent.stopImmediatePropagation();
+                                  }
+                                }}
+                                onMouseUp={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }}
+                                onContextMenu={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }}
+                                className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                                title="Delete user"
+                              >
+                                <Trash className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </>
                         ) : (
                           <span className="text-xs text-muted-foreground px-2 py-1 bg-muted/50 rounded">Read-only</span>
