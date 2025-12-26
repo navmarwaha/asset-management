@@ -41,7 +41,7 @@ export const useAssets = () => {
       const response = await api.assets.getAllWithoutPagination();
       return response.data;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0, // Always consider data stale to allow immediate refetch after updates
     gcTime: 10 * 60 * 1000,
     retry: 2,
   });
@@ -67,10 +67,22 @@ export const useUpdateAsset = () => {
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Asset> & { id: string }) => {
       const response = await api.assets.update(id, updates);
-      return response.data;
+      return { id, updatedAsset: response.data };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['assets'] });
+    onSuccess: async (data) => {
+      // Update the cache with the returned data immediately
+      queryClient.setQueryData<Asset[]>(['assets'], (oldData) => {
+        if (!oldData) return oldData;
+        return oldData.map((asset) => 
+          asset.id === data.id ? { ...asset, ...data.updatedAsset } : asset
+        );
+      });
+      
+      // Invalidate to ensure we get fresh data on next fetch
+      await queryClient.invalidateQueries({ 
+        queryKey: ['assets'],
+        refetchType: 'active'
+      });
     },
   });
 };

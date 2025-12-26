@@ -647,7 +647,8 @@ export const Dashboard = () => {
         }
       }
 
-      refetch();
+      // Refetch to ensure UI is updated with latest data
+      await refetch();
       toast.success("Asset updated successfully");
     } catch (error: any) {
       console.error("Error updating asset:", error);
@@ -994,24 +995,12 @@ export const Dashboard = () => {
                   </Label>
                 </div>
               </div>
-              <NotificationDropdown />
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="relative"
-                onClick={() => {
+              <NotificationDropdown 
+                onPendingRequestsClick={() => {
                   setShowPendingRequests(true);
                   fetchPendingCount();
                 }}
-              >
-                <Bell className="h-4 w-4" />
-                {pendingCount > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                    {pendingCount}
-                  </Badge>
-                )}
-                <span className="ml-2 hidden sm:inline">Requests</span>
-              </Button>
+              />
               <UserProfile />
             </div>
           </div>
