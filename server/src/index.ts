@@ -12,6 +12,7 @@ import pendingRequestsRoutes from './routes/pending-requests';
 import employeesRoutes from './routes/employees';
 import usersRoutes from './routes/users';
 import ordersRoutes from './routes/orders';
+import notificationsRoutes from './routes/notifications';
 
 dotenv.config();
 
@@ -55,6 +56,7 @@ app.use('/api/pending-requests', pendingRequestsRoutes);
 app.use('/api/employees', employeesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/orders', ordersRoutes);
+app.use('/api/notifications', notificationsRoutes);
 
 // 404 handler
 app.use((req, res) => {

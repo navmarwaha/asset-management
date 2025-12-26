@@ -256,6 +256,31 @@ export const api = {
         method: 'POST',
       }),
   },
+
+  // Notifications
+  notifications: {
+    getAll: (params?: { limit?: number; offset?: number; unread_only?: boolean }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.offset) queryParams.append('offset', params.offset.toString());
+      if (params?.unread_only) queryParams.append('unread_only', 'true');
+      const queryString = queryParams.toString();
+      return apiRequest<{ data: any[] }>(`/notifications${queryString ? `?${queryString}` : ''}`);
+    },
+    
+    getUnreadCount: () =>
+      apiRequest<{ count: number }>('/notifications/unread-count'),
+    
+    markAsRead: (id: string) =>
+      apiRequest<{ data: any }>(`/notifications/${id}/read`, {
+        method: 'PUT',
+      }),
+    
+    markAllAsRead: () =>
+      apiRequest<{ data: any[]; count: number }>('/notifications/read-all', {
+        method: 'PUT',
+      }),
+  },
 };
 
 export default api;

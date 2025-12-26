@@ -22,6 +22,7 @@ import EmployeeDetails from "./EmployeeDetails";
 import AboutView from "./AboutView";
 import OrdersView from "./OrdersView"; // New import
 import { PendingRequests } from "./PendingRequests";
+import { NotificationDropdown } from "./NotificationDropdown";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -993,6 +994,7 @@ export const Dashboard = () => {
                   </Label>
                 </div>
               </div>
+              <NotificationDropdown />
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -1008,6 +1010,7 @@ export const Dashboard = () => {
                     {pendingCount}
                   </Badge>
                 )}
+                <span className="ml-2 hidden sm:inline">Requests</span>
               </Button>
               <UserProfile />
             </div>

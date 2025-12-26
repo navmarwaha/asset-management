@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { query } from '../config/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requireOperator } from '../middleware/authorize';
+import { notifyAdminsAboutAssetChange } from '../services/notificationService';
 
 const router = express.Router();
 
@@ -255,7 +256,73 @@ router.put('/:id', requireOperator, async (req: Request, res: Response) => {
       updateValues
     );
 
-    res.json({ data: result.rows[0] });
+    const updatedAsset = result.rows[0];
+
+    // Check if this is an assignment or return and notify admins
+    const existingAsset = existingResult.rows[0];
+    const wasAssigned = existingAsset.assigned_to || existingAsset.employee_id;
+    const isNowAssigned = updatedAsset.assigned_to || updatedAsset.employee_id;
+
+    // Asset assignment: was not assigned, now is assigned
+    if (!wasAssigned && isNowAssigned) {
+      // Get employee name if available
+      let employeeName = null;
+      if (updatedAsset.employee_id) {
+        try {
+          const empResult = await query(
+            'SELECT employee_name FROM employees WHERE employee_id = $1',
+            [updatedAsset.employee_id]
+          );
+          if (empResult.rows.length > 0) {
+            employeeName = empResult.rows[0].employee_name;
+          }
+        } catch (error) {
+          console.error('Error fetching employee name:', error);
+        }
+      }
+
+      await notifyAdminsAboutAssetChange({
+        notification_type: 'asset_assigned',
+        asset_id: id,
+        asset_name: updatedAsset.name,
+        asset_asset_id: updatedAsset.asset_id,
+        assigned_to: updatedAsset.assigned_to || null,
+        employee_id: updatedAsset.employee_id || null,
+        employee_name: employeeName,
+        action_by: authReq.user?.email || 'unknown_user',
+      });
+    }
+    // Asset return: was assigned, now is not assigned
+    else if (wasAssigned && !isNowAssigned) {
+      // Get employee name from previous assignment
+      let employeeName = null;
+      if (existingAsset.employee_id) {
+        try {
+          const empResult = await query(
+            'SELECT employee_name FROM employees WHERE employee_id = $1',
+            [existingAsset.employee_id]
+          );
+          if (empResult.rows.length > 0) {
+            employeeName = empResult.rows[0].employee_name;
+          }
+        } catch (error) {
+          console.error('Error fetching employee name:', error);
+        }
+      }
+
+      await notifyAdminsAboutAssetChange({
+        notification_type: 'asset_returned',
+        asset_id: id,
+        asset_name: updatedAsset.name,
+        asset_asset_id: updatedAsset.asset_id,
+        assigned_to: existingAsset.assigned_to || null,
+        employee_id: existingAsset.employee_id || null,
+        employee_name: employeeName,
+        action_by: authReq.user?.email || 'unknown_user',
+      });
+    }
+
+    res.json({ data: updatedAsset });
   } catch (error: any) {
     console.error('Error updating asset:', error);
     if (error.code === '23505') {
