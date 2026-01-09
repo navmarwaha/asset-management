@@ -194,7 +194,7 @@ CREATE INDEX IF NOT EXISTS idx_orders_sales_order ON public.orders(sales_order);
 CREATE TABLE IF NOT EXISTS public.notifications (
   id UUID NOT NULL DEFAULT uuid_generate_v4() PRIMARY KEY,
   user_email TEXT NOT NULL REFERENCES public.users(email) ON DELETE CASCADE,
-  notification_type TEXT NOT NULL CHECK (notification_type IN ('asset_assigned', 'asset_returned')),
+  notification_type TEXT NOT NULL CHECK (notification_type IN ('asset_assigned', 'asset_returned', 'pending_request_assign', 'pending_request_return')),
   asset_id UUID NOT NULL REFERENCES public.assets(id) ON DELETE CASCADE,
   asset_name TEXT,
   asset_asset_id TEXT,

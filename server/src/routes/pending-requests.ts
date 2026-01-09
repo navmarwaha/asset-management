@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { query } from '../config/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { requireAdmin } from '../middleware/authorize';
+import { notifyAdminsAboutPendingRequest } from '../services/notificationService';
 
 const router = express.Router();
 
@@ -181,7 +182,54 @@ router.post('/', async (req: Request, res: Response) => {
       ]
     );
 
-    res.status(201).json({ data: result.rows[0] });
+    const createdRequest = result.rows[0];
+
+    // Get asset details for notification
+    const assetResult = await query(
+      'SELECT name, asset_id FROM assets WHERE id = $1',
+      [asset_id]
+    );
+
+    if (assetResult.rows.length > 0) {
+      const asset = assetResult.rows[0];
+      const notificationType = request_type === 'assign' 
+        ? 'pending_request_assign' 
+        : 'pending_request_return';
+      
+      // Get employee name if available
+      let employeeName = assign_to || null;
+      if (employee_id && request_type === 'assign') {
+        try {
+          const empResult = await query(
+            'SELECT employee_name FROM employees WHERE employee_id = $1',
+            [employee_id]
+          );
+          if (empResult.rows.length > 0) {
+            employeeName = empResult.rows[0].employee_name;
+          }
+        } catch (error) {
+          console.error('Error fetching employee name for notification:', error);
+        }
+      } else if (request_type === 'return') {
+        // For return requests, use original assigned_to
+        employeeName = originalAssignedTo || null;
+      }
+      
+      // Notify admins about the pending request
+      await notifyAdminsAboutPendingRequest({
+        notification_type: notificationType,
+        asset_id: asset_id,
+        asset_name: asset.name,
+        asset_asset_id: asset.asset_id,
+        assigned_to: assign_to || originalAssignedTo || null,
+        employee_id: employee_id || originalEmployeeId || null,
+        employee_name: employeeName,
+        action_by: authReq.user?.email || 'unknown_user',
+        request_id: createdRequest.id,
+      });
+    }
+
+    res.status(201).json({ data: createdRequest });
   } catch (error) {
     console.error('Error creating pending request:', error);
     res.status(500).json({ error: 'Failed to create pending request' });

@@ -1,7 +1,7 @@
 import { query } from '../config/database';
 
 interface NotificationData {
-  notification_type: 'asset_assigned' | 'asset_returned';
+  notification_type: 'asset_assigned' | 'asset_returned' | 'pending_request_assign' | 'pending_request_return';
   asset_id: string;
   asset_name?: string;
   asset_asset_id?: string;
@@ -9,6 +9,7 @@ interface NotificationData {
   employee_id?: string;
   employee_name?: string;
   action_by: string;
+  request_id?: string;
 }
 
 /**
@@ -74,6 +75,16 @@ export async function createNotificationsForAdmins(
  * Create dashboard notifications for admin users when asset assignment/return happens
  */
 export async function notifyAdminsAboutAssetChange(
+  notificationData: NotificationData
+): Promise<void> {
+  // Create dashboard notifications only
+  await createNotificationsForAdmins(notificationData);
+}
+
+/**
+ * Create dashboard notifications for admin users when pending requests are created
+ */
+export async function notifyAdminsAboutPendingRequest(
   notificationData: NotificationData
 ): Promise<void> {
   // Create dashboard notifications only

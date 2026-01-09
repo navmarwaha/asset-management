@@ -33,7 +33,7 @@ interface PendingRequest {
 
 interface Notification {
   id: string;
-  notification_type: 'asset_assigned' | 'asset_returned';
+  notification_type: 'asset_assigned' | 'asset_returned' | 'pending_request_assign' | 'pending_request_return';
   asset_id: string;
   asset_name: string;
   asset_asset_id: string;
@@ -141,9 +141,14 @@ export const NotificationDropdown = ({ onPendingRequestsClick }: NotificationDro
 
     if (notification.notification_type === 'asset_assigned') {
       return `Asset ${assetInfo} assigned to ${employeeInfo}`;
-    } else {
+    } else if (notification.notification_type === 'asset_returned') {
       return `Asset ${assetInfo} returned from ${employeeInfo}`;
+    } else if (notification.notification_type === 'pending_request_assign') {
+      return `Pending: Assign ${assetInfo} to ${employeeInfo}`;
+    } else if (notification.notification_type === 'pending_request_return') {
+      return `Pending: Return ${assetInfo} from ${employeeInfo}`;
     }
+    return `Asset ${assetInfo} - ${notification.notification_type}`;
   };
 
   const handlePendingRequestClick = () => {
