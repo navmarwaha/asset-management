@@ -22,7 +22,6 @@ import EmployeeDetails from "./EmployeeDetails";
 import AboutView from "./AboutView";
 import OrdersView from "./OrdersView"; // New import
 import { PendingRequests } from "./PendingRequests";
-import { NotificationDropdown } from "./NotificationDropdown";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -1012,12 +1011,22 @@ export const Dashboard = () => {
                   </Label>
                 </div>
               </div>
-              <NotificationDropdown 
-                onPendingRequestsClick={() => {
+              <Button
+                variant="outline"
+                size="sm"
+                className="relative"
+                onClick={() => {
                   setShowPendingRequests(true);
                   fetchPendingCount();
                 }}
-              />
+              >
+                <Bell className="h-4 w-4" />
+                {pendingCount > 0 && (
+                  <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs">
+                    {pendingCount}
+                  </Badge>
+                )}
+              </Button>
               <UserProfile />
             </div>
           </div>
