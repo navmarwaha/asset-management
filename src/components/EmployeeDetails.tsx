@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api-client";
 import { toast } from "sonner";
+import { useAutoRefresh } from "@/contexts/AutoRefreshContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Search, Download, Upload } from "lucide-react";
@@ -33,57 +34,43 @@ const EmployeeDetails = () => {
   const [userRole, setUserRole] = useState<string | null>(null); // Added to track user role
   const rowsPerPage = 10;
 
-  useEffect(() => {
-    fetchEmployees();
-    fetchUserRole(); // Fetch the user's role
-  }, []);
+  const { registerRefreshCallback, unregisterRefreshCallback } = useAutoRefresh();
 
   const fetchUserRole = async () => {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user?.email) {
-        console.error('Authentication error or no user:', authError);
-        setUserRole(null);
-        return;
-      }
-      const { data, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('email', user.email)
-        .single();
-      if (error || !data) {
-        console.error('Error fetching user role:', error);
-        setUserRole(null);
-      } else {
-        setUserRole(data.role);
-      }
+      const response = await api.users.getMe();
+      setUserRole(response.data?.role || null);
     } catch (error) {
       console.error('Unexpected error fetching user role:', error);
       setUserRole(null);
     }
   };
 
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('employees')
-        .select('*')
-        .order('employee_id', { ascending: true });
-      
-      if (error) {
-        toast.error('Failed to fetch employees');
-        console.error('Error fetching employees:', error);
-      } else {
-        setEmployees(data || []);
-      }
+      const response = await api.employees.getAll();
+      setEmployees(response.data || []);
     } catch (error) {
       toast.error('Failed to fetch employees');
       console.error('Error:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchEmployees();
+    fetchUserRole(); // Fetch the user's role
+  }, [fetchEmployees]);
+
+  // Register refresh callback for auto-refresh
+  useEffect(() => {
+    registerRefreshCallback('employee-details', fetchEmployees);
+    return () => {
+      unregisterRefreshCallback('employee-details');
+    };
+  }, [registerRefreshCallback, unregisterRefreshCallback, fetchEmployees]);
 
   const handleAddOrUpdate = async () => {
     if (!newEmployee.employee_id || !newEmployee.employee_name || !newEmployee.email) {
@@ -104,29 +91,12 @@ const EmployeeDetails = () => {
       
       if (editingId) {
         // Update existing employee
-        const { error } = await supabase
-          .from('employees')
-          .update(employeeData)
-          .eq('employee_id', editingId);
-        
-        if (error) {
-          toast.error('Failed to update employee');
-          console.error('Update error:', error);
-          return;
-        }
+        await api.employees.update(editingId, employeeData);
         result = { success: true, message: 'Employee updated successfully' };
         setEditingId(null);
       } else {
         // Add new employee
-        const { error } = await supabase
-          .from('employees')
-          .insert([employeeData]);
-        
-        if (error) {
-          toast.error('Failed to add employee');
-          console.error('Insert error:', error);
-          return;
-        }
+        await api.employees.create(employeeData);
         result = { success: true, message: 'Employee added successfully' };
       }
       
@@ -170,16 +140,7 @@ const EmployeeDetails = () => {
 
     try {
       setLoading(true);
-      const { error } = await supabase
-        .from('employees')
-        .delete()
-        .eq('employee_id', employee_id);
-      
-      if (error) {
-        toast.error('Failed to delete employee');
-        console.error('Delete error:', error);
-        return;
-      }
+      await api.employees.delete(employee_id);
       
       toast.success('Employee deleted successfully');
       await fetchEmployees();
@@ -283,13 +244,13 @@ const EmployeeDetails = () => {
 
         try {
           setLoading(true);
-          const { error } = await supabase.from('employees').insert(validEmployees);
-
-          if (error) {
-            throw error;
+          const response = await api.employees.createBulk(validEmployees);
+          if (response.errors > 0) {
+            toast.warning(`Created ${response.created} employees, ${response.errors} errors occurred`);
+          } else {
+            toast.success(`Successfully created ${response.created} employees`);
           }
 
-          toast.success(`Successfully uploaded ${validEmployees.length} employee(s)`);
           await fetchEmployees();
         } catch (error: any) {
           toast.error(`Failed to upload employees: ${error.message}`);

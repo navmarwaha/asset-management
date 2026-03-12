@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+// Note: Password update functionality needs to be implemented in backend
+// For now, this is disabled as we're using Google OAuth
+import { toast } from 'sonner';
 
 export const Account = () => {
   const { user } = useAuth();
@@ -13,18 +15,11 @@ export const Account = () => {
   const [loading, setLoading] = useState(false);
 
   const handleUpdatePassword = async () => {
-    try {
-      setLoading(true);
-      // Note: If user signed in with Google, they may need to link email/password or handle differently
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      setCurrentPassword('');
-      setNewPassword('');
-    } catch (error) {
-      console.error('Error updating password:', error);
-    } finally {
-      setLoading(false);
-    }
+    // Note: Password update is not available with Google OAuth
+    // Users authenticate via Google, so password management is handled by Google
+    toast.info('Password management is handled through Google account settings');
+    setCurrentPassword('');
+    setNewPassword('');
   };
 
   return (

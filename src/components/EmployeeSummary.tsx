@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { useEffect, useState, useCallback } from 'react';
+import api from '@/lib/api-client';
+import { useAutoRefresh } from '@/contexts/AutoRefreshContext';
 import {
   Card,
   CardContent,
@@ -44,11 +45,16 @@ const EmployeeSummary: React.FC<EmployeeSummaryProps> = ({ currentUser }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const fetchSummary = async () => {
+  const { registerRefreshCallback, unregisterRefreshCallback } = useAutoRefresh();
+
+  const fetchSummary = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const { data, error } = await (supabase as any).rpc('employee_summary');
+      // TODO: Implement employee_summary endpoint in backend
+      // For now, return empty array
+      const data: EmpRow[] = [];
+      const error = null;
 
       if (error) {
         console.error('RPC Error:', error);
@@ -68,11 +74,19 @@ const EmployeeSummary: React.FC<EmployeeSummaryProps> = ({ currentUser }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchSummary();
-  }, [currentUser]);
+  }, [currentUser, fetchSummary]);
+
+  // Register refresh callback for auto-refresh
+  useEffect(() => {
+    registerRefreshCallback('employee-summary', fetchSummary);
+    return () => {
+      unregisterRefreshCallback('employee-summary');
+    };
+  }, [registerRefreshCallback, unregisterRefreshCallback, fetchSummary]);
 
   const matchesSearch = (row: EmpRow) => {
     const query = searchQuery.toLowerCase();

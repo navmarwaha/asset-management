@@ -12,7 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Pencil, Trash2 } from 'lucide-react';
 import { CreateUserDialog } from '@/components/CreateUserDialog';
-import { supabase } from '@/lib/supabase';
+import api from '@/lib/api-client';
+import { toast } from 'sonner';
 
 export const UserManagement = () => {
   const [users, setUsers] = useState<any[]>([]);
@@ -25,23 +26,24 @@ export const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.from('users').select('*');
-      if (error) throw error;
-      setUsers(data || []);
+      const response = await api.users.getAll();
+      setUsers(response.data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
+      toast.error('Failed to fetch users');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (email: string) => {
     try {
-      const { error } = await supabase.from('users').delete().eq('id', id);
-      if (error) throw error;
+      await api.users.delete(email);
+      toast.success('User deleted successfully');
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error);
+      toast.error(error.message || 'Failed to delete user');
     }
   };
 
@@ -63,7 +65,6 @@ export const UserManagement = () => {
             <TableHead>Name</TableHead>
             <TableHead>Department</TableHead>
             <TableHead>Email</TableHead>
-            <TableHead>Account Type</TableHead>
             <TableHead className="w-[100px]"></TableHead>
           </TableRow>
         </TableHeader>
@@ -80,12 +81,11 @@ export const UserManagement = () => {
               </TableCell>
               <TableCell>{user.department}</TableCell>
               <TableCell>{user.email}</TableCell>
-              <TableCell>{user.account_type}</TableCell>
               <TableCell className="flex gap-2">
                 <Button variant="ghost" size="icon">
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(user.id)}>
+                <Button variant="ghost" size="icon" onClick={() => handleDelete(user.email)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TableCell>

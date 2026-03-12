@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { supabase } from '@/lib/supabase';
+import api from '@/lib/api-client';
+import { toast } from 'sonner';
 
 interface CreateUserDialogProps {
   onSuccess: () => void;
@@ -28,7 +29,6 @@ export const CreateUserDialog = ({ onSuccess }: CreateUserDialogProps) => {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
   const [createType, setCreateType] = useState('Single user');
-  const [accountType, setAccountType] = useState('Standard (Email & Password)');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -55,42 +55,28 @@ export const CreateUserDialog = ({ onSuccess }: CreateUserDialogProps) => {
 
   const handleCreate = async () => {
     try {
-      // Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name, // Optional: Store in user_metadata if needed elsewhere
-            department,
-            role,
-          },
-        },
-      });
-      if (authError) throw authError;
-
-      // Insert into users table to make it appear in the list
-      const { error: insertError } = await supabase.from('users').insert({
-        id: authData.user?.id,
+      // Note: Since we're using Google OAuth, user creation might need to be handled differently
+      // For now, we'll just create the user record in the database
+      // The user will need to sign in with Google to authenticate
+      await api.users.create({
         email,
         department,
         role,
-        account_type: 'Standard',
       });
-      if (insertError) throw insertError;
 
+      toast.success('User created successfully');
       onSuccess();
       setOpen(false);
       resetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating user:', error);
+      toast.error(error.message || 'Failed to create user');
     }
   };
 
   const resetForm = () => {
     setStep(1);
     setCreateType('Single user');
-    setAccountType('Standard (Email & Password)');
     setName('');
     setEmail('');
     setPassword('');
@@ -112,7 +98,7 @@ export const CreateUserDialog = ({ onSuccess }: CreateUserDialogProps) => {
         </DialogHeader>
         <div className="flex border-b">
           <div className={`flex-1 p-2 text-center ${step === 1 ? 'bg-blue-50 text-blue-600' : 'bg-gray-50'}`}>
-            1 Account type
+            1 Create type
           </div>
           <div className={`flex-1 p-2 text-center ${step === 2 ? 'bg-blue-50 text-blue-600' : 'bg-gray-50'}`}>
             2 Details
@@ -128,18 +114,6 @@ export const CreateUserDialog = ({ onSuccess }: CreateUserDialogProps) => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Single user">Single user</SelectItem>
-                  {/* Add more options if needed */}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="accountType">Select account type *</Label>
-              <Select value={accountType} onValueChange={setAccountType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select account type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Standard (Email & Password)">Standard (Email & Password)</SelectItem>
                   {/* Add more options if needed */}
                 </SelectContent>
               </Select>

@@ -1,5 +1,5 @@
 /*  SummaryView.tsx  –  Location → Type → Brand Summary + CSV  */
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -282,25 +282,85 @@ const SummaryView = ({ assets }: SummaryViewProps) => {
   };
 
   /* ---------- SYNC FILTERS ---------- */
+  // Use ref to track previous values and prevent infinite loops
+  const prevOptionsRef = useRef({
+    types: '',
+    brands: '',
+    statuses: '',
+    locations: '',
+    conditions: '',
+    configs: '',
+    warranties: '',
+    checks: '',
+  });
+
   useEffect(() => {
-    setTypeFilter(p => p.filter(v => assetTypes.includes(v)));
-    setBrandFilter(p => p.filter(v => assetBrands.includes(v)));
-    setStatusFilter(p => p.filter(v => assetStatuses.includes(v)));
-    setLocationFilter(p => p.filter(v => assetLocations.includes(v)));
-    setConditionFilter(p => p.filter(v => assetConditions.includes(v)));
-    setConfigFilter(p => p.filter(v => assetConfigurations.includes(v)));
-    setWarrantyFilter(p => p.filter(v => warrantyStatuses.includes(v)));
-    setAssetCheckFilter(p => p.filter(v => assetChecks.includes(v)));
-  }, [
-    assetTypes,
-    assetBrands,
-    assetStatuses,
-    assetLocations,
-    assetConditions,
-    assetConfigurations,
-    warrantyStatuses,
-    assetChecks,
-  ]);
+    const typesStr = assetTypes.join(',');
+    const brandsStr = assetBrands.join(',');
+    const statusesStr = assetStatuses.join(',');
+    const locationsStr = assetLocations.join(',');
+    const conditionsStr = assetConditions.join(',');
+    const configsStr = assetConfigurations.join(',');
+    const warrantiesStr = warrantyStatuses.join(',');
+    const checksStr = assetChecks.join(',');
+
+    // Only update if the options have actually changed
+    const hasChanged = 
+      prevOptionsRef.current.types !== typesStr ||
+      prevOptionsRef.current.brands !== brandsStr ||
+      prevOptionsRef.current.statuses !== statusesStr ||
+      prevOptionsRef.current.locations !== locationsStr ||
+      prevOptionsRef.current.conditions !== conditionsStr ||
+      prevOptionsRef.current.configs !== configsStr ||
+      prevOptionsRef.current.warranties !== warrantiesStr ||
+      prevOptionsRef.current.checks !== checksStr;
+
+    if (hasChanged) {
+      prevOptionsRef.current = {
+        types: typesStr,
+        brands: brandsStr,
+        statuses: statusesStr,
+        locations: locationsStr,
+        conditions: conditionsStr,
+        configs: configsStr,
+        warranties: warrantiesStr,
+        checks: checksStr,
+      };
+
+      setTypeFilter(p => {
+        const filtered = p.filter(v => assetTypes.includes(v));
+        return filtered.length !== p.length ? filtered : p;
+      });
+      setBrandFilter(p => {
+        const filtered = p.filter(v => assetBrands.includes(v));
+        return filtered.length !== p.length ? filtered : p;
+      });
+      setStatusFilter(p => {
+        const filtered = p.filter(v => assetStatuses.includes(v));
+        return filtered.length !== p.length ? filtered : p;
+      });
+      setLocationFilter(p => {
+        const filtered = p.filter(v => assetLocations.includes(v));
+        return filtered.length !== p.length ? filtered : p;
+      });
+      setConditionFilter(p => {
+        const filtered = p.filter(v => assetConditions.includes(v));
+        return filtered.length !== p.length ? filtered : p;
+      });
+      setConfigFilter(p => {
+        const filtered = p.filter(v => assetConfigurations.includes(v));
+        return filtered.length !== p.length ? filtered : p;
+      });
+      setWarrantyFilter(p => {
+        const filtered = p.filter(v => warrantyStatuses.includes(v));
+        return filtered.length !== p.length ? filtered : p;
+      });
+      setAssetCheckFilter(p => {
+        const filtered = p.filter(v => assetChecks.includes(v));
+        return filtered.length !== p.length ? filtered : p;
+      });
+    }
+  }, [assetTypes, assetBrands, assetStatuses, assetLocations, assetConditions, assetConfigurations, warrantyStatuses, assetChecks]);
 
   /* ---------- CSV EXPORT: Location → Type → Brand ---------- */
   const downloadSummaryCSV = () => {

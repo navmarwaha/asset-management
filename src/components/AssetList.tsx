@@ -15,7 +15,8 @@ import { useAssetHistory } from "@/hooks/useAssetHistory";
 import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EnhancedBarcodeScanner } from "./EnhancedBarcodeScanner";
-import { supabase } from "@/integrations/supabase/client";
+// Supabase removed - using API client instead
+import api from "@/lib/api-client";
 import { toast } from "sonner";
 import { generateDispatchEmailSubject, generateDispatchEmailBody, generateReceiveEmailSubject, generateReceiveEmailBody, openGmailCompose } from "@/lib/emailTemplates";
 
@@ -153,13 +154,10 @@ export const AssetList = ({
     try {
       setIsFetchingEmployee(true);
       const normalizedId = id.replace(/^lbpl/i, '').toUpperCase();
-      const { data, error } = await supabase
-        .from('employees')
-        .select('employee_name, email')
-        .eq('employee_id', `LBPL${normalizedId}`)
-        .single();
+      const response = await api.employees.getById(`LBPL${normalizedId}`);
+      const data = response.data;
 
-      if (data && !error) {
+      if (data) {
         setUserName(data.employee_name || '');
         setEmployeeEmail(data.email || '');
         toast.success('Employee details loaded successfully');
@@ -188,13 +186,10 @@ export const AssetList = ({
     try {
       setReturnIsFetchingEmployee(true);
       const normalizedId = id.replace(/^lbpl/i, '').toUpperCase();
-      const { data, error } = await supabase
-        .from('employees')
-        .select('employee_name, email')
-        .eq('employee_id', `LBPL${normalizedId}`)
-        .single();
+      const response = await api.employees.getById(`LBPL${normalizedId}`);
+      const data = response.data;
 
-      if (data && !error) {
+      if (data) {
         setReturnUserName(data.employee_name || '');
         setReturnEmployeeEmail(data.email || '');
         toast.success('Buyer details loaded successfully');

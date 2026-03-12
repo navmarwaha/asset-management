@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Filter, Search, Package, Users } from "lucide-react";
@@ -207,13 +207,60 @@ const DashboardView = ({
     setSearchQueryStatus("");
   };
 
-  // Reset invalid selections
+  // Reset invalid selections - use ref to track previous values and prevent infinite loops
+  const prevOptionsRef = useRef({
+    types: '',
+    brands: '',
+    configs: '',
+    locations: '',
+    statuses: '',
+  });
+
   useEffect(() => {
-    setTypeFilter((prev) => prev.filter((t) => assetTypes.includes(t)));
-    setBrandFilter((prev) => prev.filter((b) => assetBrands.includes(b)));
-    setConfigFilter((prev) => prev.filter((c) => assetConfigurations.includes(c)));
-    setLocationFilter((prev) => prev.filter((l) => assetLocations.includes(l)));
-    setStatusFilter((prev) => prev.filter((s) => assetStatuses.includes(s)));
+    const typesStr = assetTypes.join(',');
+    const brandsStr = assetBrands.join(',');
+    const configsStr = assetConfigurations.join(',');
+    const locationsStr = assetLocations.join(',');
+    const statusesStr = assetStatuses.join(',');
+
+    // Only update if the options have actually changed
+    const hasChanged = 
+      prevOptionsRef.current.types !== typesStr ||
+      prevOptionsRef.current.brands !== brandsStr ||
+      prevOptionsRef.current.configs !== configsStr ||
+      prevOptionsRef.current.locations !== locationsStr ||
+      prevOptionsRef.current.statuses !== statusesStr;
+
+    if (hasChanged) {
+      prevOptionsRef.current = {
+        types: typesStr,
+        brands: brandsStr,
+        configs: configsStr,
+        locations: locationsStr,
+        statuses: statusesStr,
+      };
+
+      setTypeFilter((prev) => {
+        const filtered = prev.filter((t) => assetTypes.includes(t));
+        return filtered.length !== prev.length ? filtered : prev;
+      });
+      setBrandFilter((prev) => {
+        const filtered = prev.filter((b) => assetBrands.includes(b));
+        return filtered.length !== prev.length ? filtered : prev;
+      });
+      setConfigFilter((prev) => {
+        const filtered = prev.filter((c) => assetConfigurations.includes(c));
+        return filtered.length !== prev.length ? filtered : prev;
+      });
+      setLocationFilter((prev) => {
+        const filtered = prev.filter((l) => assetLocations.includes(l));
+        return filtered.length !== prev.length ? filtered : prev;
+      });
+      setStatusFilter((prev) => {
+        const filtered = prev.filter((s) => assetStatuses.includes(s));
+        return filtered.length !== prev.length ? filtered : prev;
+      });
+    }
   }, [assetTypes, assetBrands, assetConfigurations, assetLocations, assetStatuses]);
 
   return (

@@ -14,7 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { LogOut, User, Settings, Edit, Trash, Search } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import api from '@/lib/api-client';
+import { toast } from 'sonner';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 export const UserProfile = () => {
@@ -24,11 +25,10 @@ export const UserProfile = () => {
   const [openSettings, setOpenSettings] = useState(false);
   const [openCreateUser, setOpenCreateUser] = useState(false);
   const [openEditUser, setOpenEditUser] = useState(false);
-  const [fullName, setFullName] = useState(user?.user_metadata?.full_name || '');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState(user?.email || '');
-  const [department, setDepartment] = useState(user?.user_metadata?.department || '');
+  const [department, setDepartment] = useState(user?.department || '');
   const [role, setRole] = useState('');
-  const [accountType, setAccountType] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -38,26 +38,31 @@ export const UserProfile = () => {
   const [isFormSubmitted, setIsFormSubmitted] = useState(false);
 
   useEffect(() => {
-    setFullName(user?.user_metadata?.full_name || '');
     setEmail(user?.email || '');
-    setDepartment(user?.user_metadata?.department || '');
+    setDepartment(user?.department || '');
     checkAuthorization();
     fetchUsers();
-    setUserRole(role);
+    if (user?.role) {
+      setUserRole(user.role);
+      setRole(user.role);
+    }
   }, [user]);
 
   const checkAuthorization = async () => {
     if (user?.email) {
-      const { data, error } = await supabase
-        .from('users')
-        .select('email, role')
-        .eq('email', user.email)
-        .single();
-      if (data && !error) {
-        setIsAuthorized(true);
-        setUserRole(data.role);
-        setRole(data.role);
-      } else {
+      try {
+        const response = await api.users.getMe();
+        if (response.data) {
+          setIsAuthorized(true);
+          setUserRole(response.data.role);
+          setRole(response.data.role);
+          setDepartment(response.data.department || '');
+        } else {
+          setIsAuthorized(false);
+          setUserRole(null);
+          setRole('');
+        }
+      } catch (error) {
         setIsAuthorized(false);
         setUserRole(null);
         setRole('');
@@ -67,11 +72,11 @@ export const UserProfile = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase.from('users').select('*');
-      if (error) throw error;
-      setUsers(data || []);
+      const response = await api.users.getAll();
+      setUsers(response.data || []);
     } catch (error) {
       console.error('Error fetching users:', error);
+      toast.error('Failed to fetch users');
     }
   };
 
@@ -85,13 +90,37 @@ export const UserProfile = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await supabase.auth.updateUser({ data: { full_name: fullName } });
-      const { data: session } = await supabase.auth.getSession();
-      if (session.session) {
-        setFullName(session.session.user.user_metadata.full_name || '');
+      if (user?.email) {
+        // Build update object with only fields that can be updated
+        const updates: any = {};
+        
+        // Department can be updated by any user
+        if (department !== undefined && department !== user?.department) {
+          updates.department = department || null;
+        }
+        
+        // Only admins can update role
+        const isAdmin = userRole === 'Super Admin' || userRole === 'Admin';
+        if (isAdmin && role !== undefined && role !== user?.role) {
+          updates.role = role || null;
+        }
+        
+        // Check if there are any fields to update
+        if (Object.keys(updates).length === 0) {
+          toast.info('No changes to save');
+          setIsLoading(false);
+          setOpenProfile(false);
+          return;
+        }
+        
+        await api.users.update(user.email, updates);
+        toast.success('Profile updated successfully');
+        // Refresh user data
+        await checkAuthorization();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update profile:', error);
+      toast.error(error.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
       setOpenProfile(false);
@@ -102,14 +131,15 @@ export const UserProfile = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await supabase.auth.updateUser({ data: { department, role } });
-      const { data: session } = await supabase.auth.getSession();
-      if (session.session) {
-        setDepartment(session.session.user.user_metadata.department || '');
-        setRole(session.session.user.user_metadata.role || '');
+      if (user?.email) {
+        const response = await api.users.update(user.email, { department, role });
+        setDepartment(response.data?.department || '');
+        setRole(response.data?.role || '');
+        toast.success('Settings updated successfully');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update settings:', error);
+      toast.error(error.message || 'Failed to update settings');
     } finally {
       setIsLoading(false);
       setOpenSettings(false);
@@ -125,30 +155,13 @@ export const UserProfile = () => {
         setErrorMessage('Admins can only create users with Operator or Reporter roles.');
         return;
       }
-      const { data, error } = await supabase.auth.signUp({
+      await api.users.create({
         email,
-        password: 'defaultPassword123',
-        options: {
-          data: {
-            department,
-            role,
-            account_type: accountType || 'Standard',
-          },
-        },
+        department,
+        role,
       });
-      if (error) throw error;
-      if (data.user) {
-        const { error: insertError } = await supabase.from('users').insert({
-          id: data.user.id,
-          email,
-          department,
-          role,
-          account_type: accountType || 'Standard',
-        });
-        if (insertError) throw insertError;
-        await fetchUsers();
-        alert('User created successfully! Please ask the new user to check their email and log in.');
-      }
+      await fetchUsers();
+      toast.success('User created successfully! The user can now sign in with Google.');
     } catch (error) {
       console.error('Error creating user:', error);
       setErrorMessage('Failed to create user. Please try again.');
@@ -159,7 +172,6 @@ export const UserProfile = () => {
         setEmail('');
         setDepartment('');
         setRole('');
-        setAccountType('');
       }
     }
   };
@@ -174,7 +186,6 @@ export const UserProfile = () => {
     setEmail(user.email);
     setDepartment(user.department || '');
     setRole(user.role || '');
-    setAccountType(user.account_type || '');
     setOpenEditUser(true);
     setIsFormSubmitted(false);
   };
@@ -202,16 +213,11 @@ export const UserProfile = () => {
     setErrorMessage('');
     setIsFormSubmitted(true);
     try {
-      const { error } = await supabase
-        .from('users')
-        .update({
-          email,
-          department,
-          role: userRole === 'Admin' ? (selectedUser.id === user.id ? selectedUser.role : role) : role,
-          account_type: accountType,
-        })
-        .eq('id', selectedUser.id);
-      if (error) throw error;
+      await api.users.update(selectedUser.email, {
+        email,
+        department,
+        role: userRole === 'Admin' ? (selectedUser.id === user.id ? selectedUser.role : role) : role,
+      });
       await fetchUsers();
       if (isFormSubmitted) {
         alert('User updated successfully!');
@@ -226,7 +232,6 @@ export const UserProfile = () => {
       setEmail('');
       setDepartment('');
       setRole('');
-      setAccountType('');
       setIsFormSubmitted(false);
     }
   };
@@ -237,7 +242,6 @@ export const UserProfile = () => {
     setEmail('');
     setDepartment('');
     setRole('');
-    setAccountType('');
     setErrorMessage('');
     setIsFormSubmitted(false);
   };
@@ -245,25 +249,21 @@ export const UserProfile = () => {
   const handleDeleteUser = async (id) => {
     if (userRole !== 'Super Admin' && userRole !== 'Admin') return;
     try {
-      const { data: targetUser, error: fetchError } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', id)
-        .single();
-      if (fetchError) throw fetchError;
+      // Get user by email (id is email in our system)
+      const targetUserResponse = await api.users.getByEmail(id);
+      const targetUser = targetUserResponse.data;
 
       if (userRole === 'Admin' && targetUser.role === 'Super Admin') {
         setErrorMessage('Admins cannot delete Super Admin users.');
         return;
       }
 
-      const { error } = await supabase.from('users').delete().eq('id', id);
-      if (error) throw error;
-      setUsers(users.filter(user => user.id !== id));
-      alert('User deleted successfully!');
-    } catch (error) {
+      await api.users.delete(id);
+      setUsers(users.filter(user => user.email !== id));
+      toast.success('User deleted successfully!');
+    } catch (error: any) {
       console.error('Error deleting user:', error);
-      setErrorMessage('Failed to delete user. Please try again.');
+      setErrorMessage(error.message || 'Failed to delete user. Please try again.');
     }
   };
 
@@ -273,13 +273,7 @@ export const UserProfile = () => {
     user.role?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const userInitials = user?.user_metadata?.full_name
-    ? user.user_metadata.full_name
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-    : user.email?.[0]?.toUpperCase() || 'U';
+  const userInitials = user?.email?.[0]?.toUpperCase() || 'U';
 
   if (!user) return <div className="text-sm">Please log in to access this page.</div>;
   if (!isAuthorized) return <div className="text-sm">Access denied. You are not an authorized user.</div>;
@@ -291,8 +285,8 @@ export const UserProfile = () => {
           <Button variant="ghost" className="relative h-9 w-9 rounded-full">
             <Avatar className="h-9 w-9">
               <AvatarImage
-                src={user.user_metadata?.avatar_url}
-                alt={user.user_metadata?.full_name || user.email}
+                src=""
+                alt={user.email || 'User'}
               />
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {userInitials}
@@ -304,7 +298,7 @@ export const UserProfile = () => {
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">
-                {user.user_metadata?.full_name || 'User'}
+                {user.email || 'User'}
               </p>
               <p className="text-xs leading-none text-muted-foreground">
                 {user.email}
@@ -341,14 +335,43 @@ export const UserProfile = () => {
           <form onSubmit={handleUpdateProfile}>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="fullName" className="text-right text-sm">Full Name</Label>
+                <Label htmlFor="email" className="text-right text-sm">Email</Label>
                 <Input
-                  id="fullName"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  id="email"
+                  value={email}
+                  disabled
+                  className="col-span-3 text-sm bg-muted"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="department" className="text-right text-sm">Department</Label>
+                <Input
+                  id="department"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                  placeholder="Enter department"
                   className="col-span-3 text-sm"
                 />
               </div>
+              {(userRole === 'Super Admin' || userRole === 'Admin') && (
+                <>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="role" className="text-right text-sm">Role</Label>
+                    <select
+                      id="role"
+                      value={role}
+                      onChange={(e) => setRole(e.target.value)}
+                      className="col-span-3 text-sm h-9 rounded-md border border-input bg-background px-3 py-1"
+                    >
+                      <option value="">Select role</option>
+                      <option value="Viewer">Viewer</option>
+                      <option value="Operator">Operator</option>
+                      <option value="Admin">Admin</option>
+                      <option value="Super Admin">Super Admin</option>
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
             <DialogFooter>
               <Button type="submit" disabled={isLoading} className="text-sm">
@@ -409,9 +432,6 @@ export const UserProfile = () => {
                 <th className="w-[120px] py-3 px-4 text-left font-semibold text-sm border-r last:border-r-0 bg-card">
                   Role
                 </th>
-                <th className="w-[120px] py-3 px-4 text-left font-semibold text-sm border-r last:border-r-0 bg-card">
-                  Account Type
-                </th>
                 <th className="w-[100px] py-3 px-4 text-left font-semibold text-sm bg-card">
                   Actions
                 </th>
@@ -420,7 +440,7 @@ export const UserProfile = () => {
             <tbody className="bg-background">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="h-24 text-center text-muted-foreground py-8">
+                  <td colSpan={5} className="h-24 text-center text-muted-foreground py-8">
                     <div className="flex flex-col items-center justify-center space-y-1">
                       <Search className="h-8 w-8 text-muted-foreground" />
                       <p className="text-sm">No users found</p>
@@ -470,11 +490,6 @@ export const UserProfile = () => {
                         </span>
                       </div>
                     </td>
-                    <td className="w-[120px] py-3 px-4 text-sm text-muted-foreground align-top border-r last:border-r-0">
-                      <div className="truncate max-w-[120px]">
-                        {user.account_type || 'Standard'}
-                      </div>
-                    </td>
                     <td className="w-[100px] py-3 px-4 align-top">
                       <div className="flex items-center space-x-1">
                         {(userRole === 'Super Admin' || (userRole === 'Admin' && user.role !== 'Super Admin' && user.role !== 'Admin')) ? (
@@ -522,18 +537,6 @@ export const UserProfile = () => {
             <div className="text-red-500 text-sm mb-4">{errorMessage}</div>
           )}
           <form onSubmit={handleCreateUser} className="space-y-4 py-4 overflow-y-auto max-h-[50vh]">
-            <div>
-              <Label htmlFor="accountType" className="text-sm">Account Type *</Label>
-              <select id="accountType" className="w-full p-2 border rounded text-sm" value={accountType} onChange={(e) => setAccountType(e.target.value)}>
-                <option value="">Select Account Type</option>
-                <option value="0">0</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-              </select>
-            </div>
             <div>
               <Label htmlFor="email" className="text-sm">Email *</Label>
               <Input
@@ -626,18 +629,6 @@ export const UserProfile = () => {
                 )}
                 <option value="Operator">Operator</option>
                 <option value="Reporter">Reporter</option>
-              </select>
-            </div>
-            <div>
-              <Label htmlFor="editAccountType" className="text-sm">Account Type *</Label>
-              <select id="editAccountType" className="w-full p-2 border rounded text-sm" value={accountType} onChange={(e) => setAccountType(e.target.value)}>
-                <option value="">Select Account Type</option>
-                <option value="0">0</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
               </select>
             </div>
             <DialogFooter>

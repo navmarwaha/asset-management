@@ -2,13 +2,17 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Menu, Upload, Plus, Bell, Download } from "lucide-react";
+import { Menu, Upload, Plus, Bell, Download, RefreshCw } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { UserProfile } from "@/components/auth/UserProfile";
+import { useAutoRefresh } from "@/contexts/AutoRefreshContext";
 import { AssetForm } from "./AssetForm";
 import { BulkUpload } from "./BulkUpload";
 import { useAssets, useCreateAsset, useUpdateAsset, useUnassignAsset, useDeleteAsset } from "@/hooks/useAssets";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api-client";
+import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import DashboardView from "./DashboardView";
 import AuditView from "./AuditView";
@@ -38,123 +42,65 @@ export const Dashboard = () => {
   const updateAssetMutation = useUpdateAsset();
   const unassignAssetMutation = useUnassignAsset();
   const deleteAssetMutation = useDeleteAsset();
-  const [currentUser, setCurrentUser] = useState<string>("unknown_user");
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'audit' | 'amcs' | 'summary' | 'orders' | 'employees' | 'about'>('dashboard'); // Updated type
+  const { user, loading: authLoading } = useAuth(); // Use AuthContext instead of fetching separately
+  const currentUser = user?.email || "unknown_user";
+  const isAuthorized = !!user;
+  const userRole = user?.role || null;
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'audit' | 'amcs' | 'summary' | 'orders' | 'employees' | 'about'>('dashboard');
   const [pendingCount, setPendingCount] = useState(0);
+  const { autoRefresh, setAutoRefresh, registerRefreshCallback, unregisterRefreshCallback, triggerRefresh } = useAutoRefresh();
 
+  // Register refresh callbacks for Dashboard data
   useEffect(() => {
-    console.log("Dashboard state:", { isAuthorized, userRole, currentUser, currentPage, isLoading, error, assetsLength: assets.length });
-  }, [isAuthorized, userRole, currentUser, currentPage, isLoading, error, assets]);
-
-  useEffect(() => {
-    const fetchUserAndAuthorize = async () => {
-      try {
-        console.log("Fetching user data...");
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError) {
-          console.error("Supabase auth error:", authError);
-          toast.error("Authentication error: " + authError.message);
-          setIsAuthorized(false);
-          setUserRole(null);
-          return;
-        }
-
-        if (user?.email) {
-          console.log("User email:", user.email);
-          setCurrentUser(user.email);
-          const { data, error } = await supabase
-            .from('users')
-            .select('email, role')
-            .eq('email', user.email)
-            .single();
-          if (error) {
-            console.error("Supabase users table error:", error);
-            toast.error("Failed to fetch user role: " + error.message);
-            setIsAuthorized(false);
-            setUserRole(null);
-            return;
-          }
-          if (data) {
-            console.log("User data:", data);
-            setIsAuthorized(true);
-            setUserRole(data.role);
-          } else {
-            console.error("No user data found for email:", user.email);
-            toast.error("User not found in database.");
-            setIsAuthorized(false);
-            setUserRole(null);
-          }
-        } else {
-          console.error("No user email found");
-          toast.error("No user logged in.");
-          setIsAuthorized(false);
-          setUserRole(null);
-        }
-      } catch (error) {
-        console.error("Unexpected error in fetchUserAndAuthorize:", error);
-        toast.error("Unexpected error during authentication: " + (error.message || "Unknown error"));
-        setIsAuthorized(false);
-        setUserRole(null);
-      }
-    };
-
-    fetchUserAndAuthorize();
-    fetchPendingCount();
-
-    const intervalId = setInterval(fetchPendingCount, 1000);
-
-    const assetsSubscription = supabase
-      .channel('assets-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'assets' }, (payload) => {
-        console.log("Real-time update received:", payload);
-        refetch();
-      })
-      .subscribe();
-
-    const pendingRequestsSubscription = supabase
-      .channel('pending-requests-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pending_requests' }, () => {
-        console.log("Pending requests update received");
-        fetchPendingCount();
-      })
-      .subscribe();
+    registerRefreshCallback('dashboard-assets', () => {
+      refetch();
+    });
+    registerRefreshCallback('dashboard-pending', () => {
+      fetchPendingCount();
+    });
 
     return () => {
-      console.log("Cleaning up subscriptions and interval");
-      assetsSubscription.unsubscribe();
-      pendingRequestsSubscription.unsubscribe();
+      unregisterRefreshCallback('dashboard-assets');
+      unregisterRefreshCallback('dashboard-pending');
+    };
+  }, [registerRefreshCallback, unregisterRefreshCallback, refetch]);
+
+  // Fetch pending count on mount
+  useEffect(() => {
+    fetchPendingCount();
+  }, []);
+
+  // Auto-refresh polling (only when enabled)
+  useEffect(() => {
+    if (!autoRefresh) {
+      return;
+    }
+
+    // Poll every 5 seconds - trigger all registered refresh callbacks
+    const intervalId = setInterval(() => {
+      triggerRefresh();
+    }, 5000);
+
+    return () => {
       clearInterval(intervalId);
     };
-  }, []);
+  }, [autoRefresh, triggerRefresh]);
 
   const fetchPendingCount = async () => {
     try {
-      const { count, error } = await supabase
-        .from('pending_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
-      if (error) {
-        console.error("Error fetching pending count:", error);
-        return;
-      }
-      console.log("Pending count:", count);
-      setPendingCount(count || 0);
+      const response = await api.pendingRequests.getCount();
+      setPendingCount(response.count || 0);
     } catch (error) {
-      console.error("Unexpected error in fetchPendingCount:", error);
+      console.error("Error fetching pending count:", error);
     }
   };
 
   const logEditHistory = async (assetId: string, field: string, oldValue: string | null, newValue: string | null) => {
     try {
-      await supabase.from("asset_edit_history").insert({
-        asset_id: assetId,
+      await api.assets.logHistory(assetId, {
         field_changed: field,
         old_value: oldValue,
         new_value: newValue,
-        changed_by: currentUser,
-        changed_at: new Date().toISOString(),
       });
     } catch (error) {
       console.error("Failed to log edit history:", error);
@@ -355,7 +301,8 @@ export const Dashboard = () => {
             asset.created_by = currentUser;
             asset.created_at = new Date().toISOString();
 
-            const { data } = await supabase.from('assets').insert([asset]).select().single();
+            const createResponse = await api.assets.create(asset);
+            const data = createResponse.data;
             await logEditHistory(data.id, "created", null, "Asset Created");
             for (const [field, value] of Object.entries(asset)) {
               if (value !== null && value !== "" && field !== "id" && field !== "created_by" && field !== "created_at" && field !== "updated_by" && field !== "updated_at") {
@@ -497,9 +444,10 @@ export const Dashboard = () => {
       }
 
       if (userRole === 'Operator') {
-        const { data: emp } = await supabase.from('employees').select('email').eq('employee_id', employeeId).single();
+        const empResponse = await api.employees.getById(employeeId);
+        const emp = empResponse.data;
         
-        await supabase.from('pending_requests').insert({
+        await api.pendingRequests.create({
           request_type: 'assign',
           asset_id: assetId,
           requested_by: currentUser,
@@ -567,7 +515,7 @@ export const Dashboard = () => {
       }
 
       if (userRole === 'Operator') {
-        await supabase.from('pending_requests').insert({
+        await api.pendingRequests.create({
           request_type: 'return',
           asset_id: assetId,
           requested_by: currentUser,
@@ -809,13 +757,13 @@ export const Dashboard = () => {
         throw new Error(`Asset with ID ${assetId} not found.`);
       }
 
-      const { error: historyError } = await supabase
-        .from('asset_edit_history')
-        .delete()
-        .eq('asset_id', assetId);
-      
-      if (historyError) {
-        throw new Error(`Failed to delete related asset edit history: ${historyError.message}`);
+      // Delete related asset edit history
+      try {
+        // The backend should handle cascading deletes, but we can also delete explicitly if needed
+        // For now, we'll rely on the database foreign key CASCADE
+      } catch (error: any) {
+        console.warn('Error deleting asset edit history:', error);
+        // Don't throw - let the asset deletion proceed
       }
 
       await deleteAssetMutation.mutateAsync(assetId);
@@ -854,8 +802,24 @@ export const Dashboard = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Wait for auth to load
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="text-center">Loading...</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center text-gray-500">Please wait while we verify your authentication.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!isAuthorized && !isLoading && !error) {
-    console.log("Rendering access denied UI");
+    // Access denied
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <Card className="w-full max-w-md">
@@ -873,7 +837,7 @@ export const Dashboard = () => {
   }
 
   if (error) {
-    console.log("Rendering error UI:", error.message);
+    // Error state
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <Card className="w-full max-w-md">
@@ -889,7 +853,7 @@ export const Dashboard = () => {
   }
 
   if (isLoading) {
-    console.log("Rendering loading UI");
+    // Loading state
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <Card className="w-full max-w-md">
@@ -905,7 +869,7 @@ export const Dashboard = () => {
   }
 
   const renderContent = () => {
-    console.log("Rendering content for page:", currentPage);
+    // Render content based on current page
     try {
       switch (currentPage) {
         case 'dashboard':
@@ -977,7 +941,7 @@ export const Dashboard = () => {
     }
   };
 
-  console.log("Rendering main Dashboard UI");
+  // Main Dashboard UI
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="border-b bg-white sticky top-0 z-50">
@@ -1016,6 +980,19 @@ export const Dashboard = () => {
                   </Button>
                 </>
               )}
+              <div className="flex items-center gap-2 px-3 py-1.5 border rounded-md bg-background">
+                <RefreshCw className={`h-4 w-4 ${autoRefresh ? 'animate-spin' : ''}`} />
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="auto-refresh"
+                    checked={autoRefresh}
+                    onCheckedChange={setAutoRefresh}
+                  />
+                  <Label htmlFor="auto-refresh" className="text-sm cursor-pointer">
+                    Auto Refresh
+                  </Label>
+                </div>
+              </div>
               <Button 
                 variant="outline" 
                 size="sm" 
